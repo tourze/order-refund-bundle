@@ -1,0 +1,94 @@
+{% extends '@EasyAdmin/layout.html.twig' %}
+
+{% block body %}
+<div class="container-fluid">
+    <h1>修改退款金额</h1>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>售后信息</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>售后单号:</strong> {{ entity.id }}</p>
+                    <p><strong>关联单号:</strong> {{ entity.referenceNumber }}</p>
+                    <p><strong>商品名称:</strong> {{ entity.productName }}</p>
+                    <p><strong>申请数量:</strong> {{ entity.quantity }}</p>
+                    <p><strong>原始申请金额:</strong> ¥{{ originalAmount|number_format(2) }}</p>
+                    <p><strong>当前退款金额:</strong> ¥{{ currentAmount|number_format(2) }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>修改退款金额</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="refund_amount" class="form-label">新的退款金额 *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">¥</span>
+                                <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    id="refund_amount" 
+                                    name="refund_amount"
+                                    step="0.01" 
+                                    min="0" 
+                                    max="{{ originalAmount }}"
+                                    value="{{ currentAmount }}"
+                                    required
+                                >
+                            </div>
+                            <div class="form-text">
+                                最大金额不能超过原始申请金额 ¥{{ originalAmount|number_format(2) }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">修改原因</label>
+                            <textarea 
+                                class="form-control" 
+                                id="reason" 
+                                name="reason" 
+                                rows="3"
+                                placeholder="请说明修改退款金额的原因..."
+                            ></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ app.request.headers.get('referer') ?? path('admin') }}" class="btn btn-secondary me-md-2">取消</a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fa fa-save"></i> 保存修改
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const refundAmountInput = document.getElementById('refund_amount');
+    const originalAmount = {{ originalAmount }};
+    
+    refundAmountInput.addEventListener('input', function() {
+        const value = parseFloat(this.value) || 0;
+        
+        if (value > originalAmount) {
+            this.setCustomValidity('退款金额不能超过原始申请金额 ¥' + originalAmount.toFixed(2));
+            this.classList.add('is-invalid');
+        } else {
+            this.setCustomValidity('');
+            this.classList.remove('is-invalid');
+        }
+    });
+});
+</script>
+{% endblock %}
