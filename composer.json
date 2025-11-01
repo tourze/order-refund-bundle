@@ -52,7 +52,7 @@
     "tourze/doctrine-snowflake-bundle": "1.0.*",
     "tourze/doctrine-timestamp-bundle": "1.0.*",
     "tourze/doctrine-track-bundle": "1.0.*",
-    "tourze/doctrine-upsert-bundle": "0.1.*",
+    "tourze/doctrine-upsert-bundle": "1.0.*",
     "tourze/doctrine-user-bundle": "1.0.*",
     "tourze/easy-admin-menu-bundle": "1.0.*",
     "tourze/enum-extra": "1.*",
