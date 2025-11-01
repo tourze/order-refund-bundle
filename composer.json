@@ -64,7 +64,7 @@
     "tourze/order-checkout-bundle": "0.0.*",
     "tourze/order-contracts": "0.0.*",
     "tourze/order-core-bundle": "0.0.*",
-    "tourze/symfony-aop-async-bundle": "0.0.*",
+    "tourze/symfony-aop-async-bundle": "1.0.*",
     "tourze/symfony-dependency-service-loader": "1.*",
     "tourze/symfony-routing-auto-loader-bundle": "1.0.*",
     "tourze/user-event-bundle": "1.0.*",
