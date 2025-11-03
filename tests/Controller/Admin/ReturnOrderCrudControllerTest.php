@@ -34,11 +34,6 @@ class ReturnOrderCrudControllerTest extends AbstractEasyAdminControllerTestCase
 
     private ?ReturnOrderRepository $repository = null;
 
-    protected function onSetUp(): void
-    {
-        // Controller and repository will be lazily initialized when needed
-    }
-
     protected function getControllerService(): ReturnOrderCrudController
     {
         if (null === $this->controller) {

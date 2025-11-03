@@ -32,11 +32,6 @@ class RefundOrderCrudControllerTest extends AbstractEasyAdminControllerTestCase
 {
     private ?RefundOrderCrudController $controller = null;
 
-    protected function onSetUp(): void
-    {
-        // Controller will be lazily initialized when needed
-    }
-
     protected function getControllerService(): RefundOrderCrudController
     {
         if (null === $this->controller) {

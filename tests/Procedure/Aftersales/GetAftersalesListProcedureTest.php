@@ -90,7 +90,7 @@ final class GetAftersalesListProcedureTest extends AbstractProcedureTestCase
 
         $this->aftersalesRepository->method('findBy')
             ->with(self::callback(function ($criteria) {
-                if ( ! is_array($criteria)) {
+                if (!is_array($criteria)) {
                     return false;
                 }
 
@@ -115,7 +115,7 @@ final class GetAftersalesListProcedureTest extends AbstractProcedureTestCase
 
         $this->aftersalesRepository->method('findBy')
             ->with(self::callback(function ($criteria) {
-                if ( ! is_array($criteria)) {
+                if (!is_array($criteria)) {
                     return false;
                 }
 

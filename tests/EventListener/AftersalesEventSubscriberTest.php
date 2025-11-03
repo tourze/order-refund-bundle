@@ -69,7 +69,7 @@ class AftersalesEventSubscriberTest extends AbstractEventSubscriberTestCase
         $this->logger->expects($this->once())
             ->method('info')
             ->with('售后申请已创建', static::callback(function ($context) {
-                if ( ! is_array($context)) {
+                if (!is_array($context)) {
                     return false;
                 }
 
@@ -97,7 +97,7 @@ class AftersalesEventSubscriberTest extends AbstractEventSubscriberTestCase
         $this->logger->expects($this->once())
             ->method('info')
             ->with('售后状态已变更', static::callback(function ($context) {
-                if ( ! is_array($context)) {
+                if (!is_array($context)) {
                     return false;
                 }
 
@@ -159,7 +159,7 @@ class AftersalesEventSubscriberTest extends AbstractEventSubscriberTestCase
         $this->logger->expects($this->once())
             ->method('info')
             ->with('售后申请已取消', static::callback(function ($context) {
-                if ( ! is_array($context)) {
+                if (!is_array($context)) {
                     return false;
                 }
 
