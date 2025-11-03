@@ -15,6 +15,7 @@ use Tourze\DoctrineSnowflakeBundle\DoctrineSnowflakeBundle;
 use Tourze\DoctrineTimestampBundle\DoctrineTimestampBundle;
 use Tourze\DoctrineTrackBundle\DoctrineTrackBundle;
 use Tourze\DoctrineUpsertBundle\DoctrineUpsertBundle;
+use Tourze\EasyAdminMenuBundle\EasyAdminMenuBundle;
 
 class OrderRefundBundle extends Bundle implements BundleDependencyInterface
 {
@@ -30,6 +31,7 @@ class OrderRefundBundle extends Bundle implements BundleDependencyInterface
             DoctrineUpsertBundle::class => ['all' => true],
             OrderCoreBundle::class => ['all' => true],
             SecurityBundle::class => ['all' => true],
+            EasyAdminMenuBundle::class => ['all' => true],
         ];
     }
 }

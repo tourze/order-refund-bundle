@@ -59,7 +59,7 @@
     "tourze/json-rpc-cache-bundle": "1.0.*",
     "tourze/json-rpc-core": "1.0.*",
     "tourze/json-rpc-lock-bundle": "1.0.*",
-    "tourze/json-rpc-log-bundle": "0.1.*",
+    "tourze/json-rpc-log-bundle": "1.0.*",
     "tourze/lock-service-bundle": "1.0.*",
     "tourze/order-checkout-bundle": "0.0.*",
     "tourze/order-contracts": "0.0.*",
