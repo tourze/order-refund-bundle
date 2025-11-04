@@ -62,7 +62,7 @@
     "tourze/json-rpc-log-bundle": "1.0.*",
     "tourze/lock-service-bundle": "1.0.*",
     "tourze/order-checkout-bundle": "0.0.*",
-    "tourze/order-contracts": "0.0.*",
+    "tourze/order-contracts": "1.0.*",
     "tourze/order-core-bundle": "0.0.*",
     "tourze/symfony-aop-async-bundle": "1.0.*",
     "tourze/symfony-dependency-service-loader": "1.0.*",

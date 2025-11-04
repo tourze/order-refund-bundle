@@ -23,7 +23,7 @@ final class ExpressCompanyCrudControllerTest extends AbstractEasyAdminController
 {
     private ExpressCompanyCrudController $controller;
 
-    protected function onSetUp(): void
+    protected function onAfterSetUp(): void
     {
         $this->controller = new ExpressCompanyCrudController();
     }

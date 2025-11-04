@@ -28,7 +28,7 @@ class AftersalesLogCrudControllerTest extends AbstractEasyAdminControllerTestCas
 {
     private AftersalesLogCrudController $controller;
 
-    protected function onSetUp(): void
+    protected function afterEasyAdminSetUp(): void
     {
         $this->controller = new AftersalesLogCrudController();
     }

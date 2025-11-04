@@ -23,7 +23,7 @@ final class ReturnAddressCrudControllerTest extends AbstractEasyAdminControllerT
 {
     private ReturnAddressCrudController $controller;
 
-    protected function onSetUp(): void
+    protected function onAfterSetUp(): void
     {
         $this->controller = new ReturnAddressCrudController();
     }
