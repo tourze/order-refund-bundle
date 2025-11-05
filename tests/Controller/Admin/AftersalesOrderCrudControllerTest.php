@@ -22,7 +22,7 @@ class AftersalesOrderCrudControllerTest extends AbstractEasyAdminControllerTestC
 {
     private AftersalesOrderCrudController $controller;
 
-    protected function onAfterSetUp(): void
+    protected function afterEasyAdminSetUp(): void
     {
         $this->controller = new AftersalesOrderCrudController();
     }
