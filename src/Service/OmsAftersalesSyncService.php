@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Service;
 
-use BizUserBundle\Repository\BizUserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
@@ -18,6 +17,7 @@ use Tourze\OrderRefundBundle\Enum\AftersalesType;
 use Tourze\OrderRefundBundle\Enum\RefundReason;
 use Tourze\OrderRefundBundle\Exception\GeneralAftersalesException;
 use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
+use Tourze\UserServiceContracts\UserManagerInterface;
 
 #[WithMonologChannel(channel: 'order_refund')]
 readonly class OmsAftersalesSyncService
@@ -25,7 +25,7 @@ readonly class OmsAftersalesSyncService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private AftersalesRepository $aftersalesRepository,
-        private BizUserRepository $userRepository,
+        private UserManagerInterface $userRepository,
         private ValidatorInterface $validator,
         private LoggerInterface $logger,
         private OmsStatusMapper $statusMapper,
