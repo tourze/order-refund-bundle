@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Entity;
 
-use BizUserBundle\Entity\BizUser;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
@@ -86,9 +86,9 @@ class AftersalesLog implements \Stringable
     private ?string $remark = null;
 
     #[Groups(groups: ['restful_read', 'admin_curd'])]
-    #[ORM\ManyToOne(targetEntity: BizUser::class)]
+    #[ORM\ManyToOne(targetEntity: UserInterface::class)]
     #[ORM\JoinColumn(name: 'user_id', nullable: true, onDelete: 'SET NULL')]
-    private ?BizUser $user = null;
+    private ?UserInterface $user = null;
 
     public function __toString(): string
     {
@@ -203,12 +203,12 @@ class AftersalesLog implements \Stringable
         $this->remark = $remark;
     }
 
-    public function getUser(): ?BizUser
+    public function getUser(): ?UserInterface
     {
         return $this->user;
     }
 
-    public function setUser(?BizUser $user): void
+    public function setUser(?UserInterface $user): void
     {
         $this->user = $user;
     }
@@ -225,11 +225,11 @@ class AftersalesLog implements \Stringable
     /**
      * 设置用户操作者
      */
-    public function setUserOperator(BizUser $user): void
+    public function setUserOperator(UserInterface $user): void
     {
         $this->operatorType = 'USER';
-        $this->operatorId = (string) $user->getId();
-        $this->operatorName = $user->getUsername();
+        $this->operatorId = (string) $user->getUserIdentifier();
+        $this->operatorName = $user->getUserIdentifier();
         $this->user = $user;
     }
 

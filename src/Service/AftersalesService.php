@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Service;
 
-use BizUserBundle\Entity\BizUser;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\OrderRefundBundle\DTO\OrderDataDTO;
 use Tourze\OrderRefundBundle\DTO\ProductDataDTO;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
@@ -50,7 +50,7 @@ readonly class AftersalesService
         RefundReason $reason,
         ?string $description = null,
         array $proofImages = [],
-        ?BizUser $user = null,
+        ?UserInterface $user = null,
     ): Aftersales {
         // 验证数据
         $errors = $this->validationService->validateAftersalesData(
@@ -161,7 +161,7 @@ readonly class AftersalesService
         RefundReason $reason,
         ?string $description = null,
         array $proofImages = [],
-        ?BizUser $user = null,
+        ?UserInterface $user = null,
     ): Aftersales {
         $orderDTO = OrderDataDTO::fromArray($orderData);
         $productDTO = ProductDataDTO::fromArray($productData);
@@ -319,9 +319,9 @@ readonly class AftersalesService
         $operatorType = 'system';
         $operatorId = null;
 
-        if ($user instanceof BizUser) {
+        if ($user instanceof UserInterface) {
             $operatorType = 'admin';
-            $operatorId = (string) $user->getId();
+            $operatorId = $user->getUserIdentifier();
         }
 
         $log = new AftersalesLog();
@@ -335,7 +335,7 @@ readonly class AftersalesService
             'original_amount' => $originalAmount,
             'new_amount' => $newAmount,
             'reason' => $reason,
-            'operator' => $user instanceof BizUser ? $user->getUserIdentifier() : 'system',
+            'operator' => $user instanceof UserInterface ? $user->getUserIdentifier() : 'system',
         ];
 
         $log->setContent(Json::encode($logContent));

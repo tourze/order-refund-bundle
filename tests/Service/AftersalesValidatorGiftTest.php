@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Service;
 
-use BizUserBundle\Entity\BizUser;
 use InvalidArgumentException;
 use OrderCoreBundle\Entity\Contract;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\OrderProductRepository;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\OrderRefundBundle\Service\AftersalesValidator;
 
 class AftersalesValidatorGiftTest extends TestCase
@@ -18,14 +18,14 @@ class AftersalesValidatorGiftTest extends TestCase
     private AftersalesValidator $validator;
     private OrderProductRepository|MockObject $orderProductRepository;
     private Contract|MockObject $contract;
-    private BizUser|MockObject $user;
+    private UserInterface|MockObject $user;
 
     protected function setUp(): void
     {
         $this->orderProductRepository = $this->createMock(OrderProductRepository::class);
         $this->validator = new AftersalesValidator($this->orderProductRepository);
         $this->contract = $this->createMock(Contract::class);
-        $this->user = $this->createMock(BizUser::class);
+        $this->user = $this->createMock(UserInterface::class);
     }
 
     public function testValidateAftersalesItemWithGiftProduct(): void

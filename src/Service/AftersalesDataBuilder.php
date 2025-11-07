@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Service;
 
-use BizUserBundle\Entity\BizUser;
 use OrderCoreBundle\Entity\Contract;
+use Symfony\Component\Security\Core\User\UserInterface;
 use OrderCoreBundle\Entity\OrderProduct;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
 use Tourze\ProductCoreBundle\Entity\Sku;
@@ -26,7 +26,7 @@ final class AftersalesDataBuilder
      * 构建基础订单数据
      * @return array<string, mixed>
      */
-    public function buildBaseOrderData(Contract $contract, BizUser $user): array
+    public function buildBaseOrderData(Contract $contract, UserInterface $user): array
     {
         return [
             'orderNumber' => $contract->getSn(),

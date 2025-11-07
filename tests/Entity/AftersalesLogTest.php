@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Entity;
 
-use BizUserBundle\Entity\BizUser;
 use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
 use Tourze\OrderRefundBundle\Entity\AftersalesLog;
 use Tourze\OrderRefundBundle\Enum\AftersalesLogAction;
@@ -66,9 +66,7 @@ class AftersalesLogTest extends AbstractEntityTestCase
         $log = new AftersalesLog();
         $aftersales = new Aftersales();
         $action = AftersalesLogAction::CREATE;
-        $user = new class extends BizUser {
-            // Anonymous BizUser implementation
-        };
+        $user = $this->createMock(UserInterface::class);
 
         $log->setAftersales($aftersales);
         $log->setAction($action);
@@ -118,22 +116,12 @@ class AftersalesLogTest extends AbstractEntityTestCase
     public function testSetUserOperator(): void
     {
         $log = new AftersalesLog();
-        $user = new class extends BizUser {
-            public function getId(): int
-            {
-                return 123;
-            }
-
-            public function getUsername(): string
-            {
-                return 'testuser';
-            }
-        };
+        $user = $this->createMock(UserInterface::class);
+        $user->method('getUserIdentifier')->willReturn('testuser');
 
         $log->setUserOperator($user);
 
         self::assertSame('USER', $log->getOperatorType());
-        self::assertSame('123', $log->getOperatorId());
         self::assertSame('testuser', $log->getOperatorName());
         self::assertSame($user, $log->getUser());
     }

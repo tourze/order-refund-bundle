@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Procedure\Aftersales;
 
-use BizUserBundle\Entity\BizUser;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Constraints as Assert;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
@@ -50,7 +50,7 @@ class GetAftersalesListProcedure extends BaseProcedure
     public function execute(): array
     {
         $user = $this->security->getUser();
-        if (!$user instanceof BizUser) {
+        if (!$user instanceof UserInterface) {
             throw new ApiException('用户未登录或类型错误');
         }
 

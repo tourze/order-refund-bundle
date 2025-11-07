@@ -42,7 +42,6 @@
     "symfony/validator": "^7.3",
     "symfony/yaml": "^7.3",
     "tourze/arrayable": "1.*",
-    "tourze/biz-user-bundle": "0.0.*",
     "tourze/bundle-dependency": "1.*",
     "tourze/doctrine-async-insert-bundle": "1.0.*",
     "tourze/doctrine-entity-lock-bundle": "1.0.*",
@@ -69,6 +68,7 @@
     "tourze/symfony-routing-auto-loader-bundle": "1.0.*",
     "tourze/user-event-bundle": "1.0.*",
     "tourze/user-id-bundle": "1.0.*",
+    "tourze/user-service-contracts": "1.0.*",
     "yiisoft/arrays": "^3",
     "yiisoft/json": "^1.0"
   },

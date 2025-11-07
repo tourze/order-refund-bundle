@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Procedure\Aftersales;
 
-use BizUserBundle\Entity\BizUser;
 use OrderCoreBundle\Entity\Contract;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\ContractRepository;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\JsonRPC\Core\Exception\ApiException;
 use Tourze\OrderRefundBundle\Procedure\Aftersales\ApplyAftersalesProcedure;
 use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
@@ -27,7 +27,7 @@ class ApplyAftersalesProcedureGiftTest extends TestCase
     private AftersalesRepository|MockObject $aftersalesRepository;
     private AftersalesValidator|MockObject $validator;
     private AftersalesDataBuilder|MockObject $dataBuilder;
-    private BizUser|MockObject $user;
+    private UserInterface|MockObject $user;
     private Contract|MockObject $contract;
 
     protected function setUp(): void
@@ -38,7 +38,7 @@ class ApplyAftersalesProcedureGiftTest extends TestCase
         $this->aftersalesRepository = $this->createMock(AftersalesRepository::class);
         $this->validator = $this->createMock(AftersalesValidator::class);
         $this->dataBuilder = $this->createMock(AftersalesDataBuilder::class);
-        $this->user = $this->createMock(BizUser::class);
+        $this->user = $this->createMock(UserInterface::class);
         $this->contract = $this->createMock(Contract::class);
 
         $this->procedure = new ApplyAftersalesProcedure(

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Procedure\Return;
 
-use BizUserBundle\Entity\BizUser;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
@@ -90,17 +90,17 @@ class SubmitReturnExpressProcedure extends BaseProcedure
         ];
     }
 
-    private function getCurrentUser(): BizUser
+    private function getCurrentUser(): UserInterface
     {
         $user = $this->security->getUser();
-        if (!$user instanceof BizUser) {
+        if (!$user instanceof UserInterface) {
             throw new ApiException('用户未登录或类型错误');
         }
 
         return $user;
     }
 
-    private function validateAftersales(BizUser $user): Aftersales
+    private function validateAftersales(UserInterface $user): Aftersales
     {
         if ('' === $this->aftersalesId) {
             throw new ApiException('售后单ID不能为空');

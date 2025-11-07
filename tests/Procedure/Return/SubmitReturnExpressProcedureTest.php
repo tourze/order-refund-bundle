@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Procedure\Return;
 
-use BizUserBundle\Entity\BizUser;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\MockObject\MockObject;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\JsonRPC\Core\Exception\ApiException;
 use Tourze\JsonRPC\Core\Tests\AbstractProcedureTestCase;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
@@ -36,7 +36,7 @@ class SubmitReturnExpressProcedureTest extends AbstractProcedureTestCase
 
     private ExpressTrackingService&MockObject $expressTrackingService;
 
-    private BizUser $mockUser;
+    private UserInterface $mockUser;
 
     protected function onSetUp(): void
     {
@@ -45,7 +45,7 @@ class SubmitReturnExpressProcedureTest extends AbstractProcedureTestCase
         $this->expressTrackingService = $this->createMock(ExpressTrackingService::class);
 
         $user = $this->createNormalUser('test@example.com', 'password123');
-        self::assertInstanceOf(BizUser::class, $user);
+        self::assertInstanceOf(UserInterface::class, $user);
         $this->mockUser = $user;
         $this->setAuthenticatedUser($this->mockUser);
 
@@ -167,7 +167,7 @@ class SubmitReturnExpressProcedureTest extends AbstractProcedureTestCase
 
     public function testExecuteThrowsExceptionWhenUserNotAuthorized(): void
     {
-        $otherUser = $this->createMock(BizUser::class);
+        $otherUser = $this->createMock(UserInterface::class);
         $aftersales = $this->createMock(Aftersales::class);
         $aftersales->method('getUser')->willReturn($otherUser);
 
@@ -326,7 +326,7 @@ class SubmitReturnExpressProcedureTest extends AbstractProcedureTestCase
         $this->procedure->execute();
     }
 
-    private function createValidAftersales(BizUser $user): Aftersales&MockObject
+    private function createValidAftersales(UserInterface $user): Aftersales&MockObject
     {
         $aftersales = $this->createMock(Aftersales::class);
         $aftersales->method('getUser')->willReturn($user);

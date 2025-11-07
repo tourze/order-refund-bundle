@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Procedure\Aftersales;
 
-use BizUserBundle\Entity\BizUser;
 use OrderCoreBundle\Entity\Contract;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\ContractRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
@@ -80,17 +80,17 @@ class ApplyAftersalesProcedure extends BaseProcedure
         }
     }
 
-    private function getCurrentUser(): BizUser
+    private function getCurrentUser(): UserInterface
     {
         $user = $this->security->getUser();
-        if (!$user instanceof BizUser) {
+        if (!$user instanceof UserInterface) {
             throw new ApiException('用户未登录或类型错误');
         }
 
         return $user;
     }
 
-    private function validateContract(BizUser $user): Contract
+    private function validateContract(UserInterface $user): Contract
     {
         $contract = $this->contractRepository->find($this->contractId);
         if (null === $contract) {
@@ -111,7 +111,7 @@ class ApplyAftersalesProcedure extends BaseProcedure
         array $baseOrderData,
         AftersalesType $type,
         RefundReason $reason,
-        BizUser $user,
+        UserInterface $user,
     ): array {
         $aftersalesList = [];
         $errors = [];
@@ -148,7 +148,7 @@ class ApplyAftersalesProcedure extends BaseProcedure
         array $baseOrderData,
         AftersalesType $type,
         RefundReason $reason,
-        BizUser $user,
+        UserInterface $user,
         array $item,
         int $index,
         array $activeAftersales,
@@ -219,10 +219,10 @@ class ApplyAftersalesProcedure extends BaseProcedure
     // public function getLockResource(JsonRpcParams $params): ?array
     // {
     //     $user = $this->security->getUser();
-    //     if (!$user instanceof BizUser) {
+    //     if (!$user instanceof UserInterface) {
     //         throw new ApiException('用户未登录或类型错误');
     //     }
     //
-    //     return [sprintf('aftersales_apply:%s:%s', $user->getId(), $this->contractId)];
+    //     return [sprintf('aftersales_apply:%s:%s', $user->getUserIdentifier(), $this->contractId)];
     // }
 }

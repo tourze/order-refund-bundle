@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Service;
 
-use BizUserBundle\Entity\BizUser;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use OrderCoreBundle\Entity\Contract;
@@ -13,6 +12,7 @@ use OrderCoreBundle\Entity\Price;
 use OrderCoreBundle\Enum\OrderState;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
 use Tourze\OrderRefundBundle\Enum\AftersalesStage;
 use Tourze\OrderRefundBundle\Enum\AftersalesState;
@@ -46,7 +46,7 @@ final class AftersalesDataBuilderTest extends TestCase
         $contract->method('getCreateTime')->willReturn(new \DateTimeImmutable('2024-01-01'));
         $contract->method('getPrices')->willReturn(new ArrayCollection());
 
-        $user = $this->createMock(BizUser::class);
+        $user = $this->createMock(UserInterface::class);
         $user->method('getUserIdentifier')->willReturn('user@test.com');
 
         $result = $this->dataBuilder->buildBaseOrderData($contract, $user);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Service;
 
-use BizUserBundle\Entity\BizUser;
 use InvalidArgumentException;
 use OrderCoreBundle\Entity\Contract;
 use OrderCoreBundle\Entity\OrderProduct;
@@ -12,6 +11,7 @@ use OrderCoreBundle\Repository\OrderProductRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\OrderRefundBundle\Enum\AftersalesType;
 use Tourze\OrderRefundBundle\Enum\RefundReason;
 use Tourze\OrderRefundBundle\Service\AftersalesValidator;
@@ -88,7 +88,7 @@ final class AftersalesValidatorTest extends TestCase
     public function testValidateContractSuccess(): void
     {
         $contract = $this->createMock(Contract::class);
-        $user = $this->createMock(BizUser::class);
+        $user = $this->createMock(UserInterface::class);
         $contract->method('getUser')->willReturn($user);
 
         $contractId = 'CONTRACT123';
@@ -105,7 +105,7 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectExceptionMessage('订单ID不能为空');
 
         $contract = $this->createMock(Contract::class);
-        $user = $this->createMock(BizUser::class);
+        $user = $this->createMock(UserInterface::class);
 
         $this->validator->validateContract('', [['orderProductId' => '1', 'quantity' => 2]], $contract, $user);
     }
@@ -116,7 +116,7 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectExceptionMessage('售后商品列表不能为空');
 
         $contract = $this->createMock(Contract::class);
-        $user = $this->createMock(BizUser::class);
+        $user = $this->createMock(UserInterface::class);
 
         $this->validator->validateContract('CONTRACT123', [], $contract, $user);
     }
@@ -126,8 +126,8 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('无权操作此订单');
 
-        $contractUser = $this->createMock(BizUser::class);
-        $requestUser = $this->createMock(BizUser::class);
+        $contractUser = $this->createMock(UserInterface::class);
+        $requestUser = $this->createMock(UserInterface::class);
 
         $contract = $this->createMock(Contract::class);
         $contract->method('getUser')->willReturn($contractUser);

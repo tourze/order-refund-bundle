@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Procedure\Refund;
 
-use BizUserBundle\Entity\BizUser;
 use OrderCoreBundle\Entity\Contract;
+use Symfony\Component\Security\Core\User\UserInterface;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\ContractRepository;
 use OrderCoreBundle\Repository\OrderProductRepository;
@@ -51,7 +51,7 @@ class CalculateRefundInfoProcedure extends BaseProcedure
     public function execute(): array
     {
         $user = $this->security->getUser();
-        if (!$user instanceof BizUser) {
+        if (!$user instanceof UserInterface) {
             throw new ApiException('用户未登录或类型错误');
         }
 
@@ -113,7 +113,7 @@ class CalculateRefundInfoProcedure extends BaseProcedure
         return $result->toArray();
     }
 
-    private function validateContract(BizUser $user): Contract
+    private function validateContract(UserInterface $user): Contract
     {
         if ('' === $this->contractId) {
             throw new ApiException('订单ID不能为空');
@@ -139,7 +139,6 @@ class CalculateRefundInfoProcedure extends BaseProcedure
 
         foreach ($this->items as $index => $item) {
             // Runtime validation needed for test cases that use reflection to inject invalid data
-            // @phpstan-ignore-next-line booleanOr.alwaysFalse, function.alreadyNarrowedType
             if (!array_key_exists('orderProductId', $item) || !array_key_exists('quantity', $item)) {
                 throw new ApiException('第 ' . ($index + 1) . ' 个商品项目格式不正确，缺少必要字段');
             }
@@ -148,7 +147,6 @@ class CalculateRefundInfoProcedure extends BaseProcedure
                 throw new ApiException('第 ' . ($index + 1) . ' 参数异常');
             }
 
-            // @phpstan-ignore-next-line function.alreadyNarrowedType
             if (!is_int($item['quantity']) || $item['quantity'] <= 0) {
                 throw new ApiException('第 ' . ($index + 1) . ' 个商品的quantity必须是大于0的整数');
             }

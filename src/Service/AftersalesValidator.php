@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Service;
 
-use BizUserBundle\Entity\BizUser;
 use InvalidArgumentException;
 use OrderCoreBundle\Entity\Contract;
+use Symfony\Component\Security\Core\User\UserInterface;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\OrderProductRepository;
 use Tourze\OrderRefundBundle\Enum\AftersalesType;
@@ -60,7 +60,7 @@ final class AftersalesValidator
      * 验证合同
      * @param array<mixed> $items
      */
-    public function validateContract(string $contractId, array $items, Contract $contract, BizUser $user): void
+    public function validateContract(string $contractId, array $items, Contract $contract, UserInterface $user): void
     {
         if ('' === $contractId) {
             throw new \InvalidArgumentException('订单ID不能为空');

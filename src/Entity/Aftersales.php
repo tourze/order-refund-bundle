@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Entity;
 
-use BizUserBundle\Entity\BizUser;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
@@ -50,9 +50,9 @@ class Aftersales implements \Stringable
     private ?string $referenceNumber = null;
 
     #[Groups(groups: ['admin_curd'])]
-    #[ORM\ManyToOne(targetEntity: BizUser::class)]
+    #[ORM\ManyToOne(targetEntity: UserInterface::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    private ?BizUser $user = null;
+    private ?UserInterface $user = null;
 
     #[TrackColumn]
     #[Groups(groups: ['restful_read', 'admin_curd'])]
@@ -254,12 +254,12 @@ class Aftersales implements \Stringable
         $this->referenceNumber = $referenceNumber;
     }
 
-    public function getUser(): ?BizUser
+    public function getUser(): ?UserInterface
     {
         return $this->user;
     }
 
-    public function setUser(?BizUser $user): void
+    public function setUser(?UserInterface $user): void
     {
         $this->user = $user;
     }
