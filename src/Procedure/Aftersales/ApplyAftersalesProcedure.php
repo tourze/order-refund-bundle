@@ -67,13 +67,16 @@ class ApplyAftersalesProcedure extends BaseProcedure
 
         try {
             $contract = $this->validateContract($user);
+            if ($contract->getType() == 'redeem'){
+                throw new ApiException('赠品不允许售后，如有疑问请联系客服');
+            }
             $baseOrderData = $this->dataBuilder->buildBaseOrderData($contract, $user);
 
             return $this->processAftersalesItems($contract, $baseOrderData, $type, $reason, $user);
         } catch (\InvalidArgumentException $e) {
-            throw new ApiException('售后申请失败: ' . $e->getMessage());
+            throw new ApiException($e->getMessage());
         } catch (\Exception $e) {
-            throw new ApiException('售后申请失败: ' . $e->getMessage());
+            throw new ApiException($e->getMessage());
         }
     }
 

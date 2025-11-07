@@ -145,6 +145,11 @@ final class AftersalesValidator
             throw new \InvalidArgumentException('商品不属于此订单: ' . $orderProductId);
         }
 
+        // 检查是否为赠品
+        if ($orderProduct->isGift()) {
+            throw new \InvalidArgumentException('赠品不允许售后，如有疑问请联系客服');
+        }
+
         return $orderProduct;
     }
 
