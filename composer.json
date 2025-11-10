@@ -68,7 +68,7 @@
     "tourze/symfony-routing-auto-loader-bundle": "1.0.*",
     "tourze/user-event-bundle": "1.0.*",
     "tourze/user-id-bundle": "1.0.*",
-    "tourze/user-service-contracts": "1.0.*",
+    "tourze/user-service-contracts": "1.1.*",
     "yiisoft/arrays": "^3",
     "yiisoft/json": "^1.0"
   },
