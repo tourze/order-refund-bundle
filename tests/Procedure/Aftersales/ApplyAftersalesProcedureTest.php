@@ -74,23 +74,26 @@ final class ApplyAftersalesProcedureTest extends AbstractProcedureTestCase
         $mockContract->method('getSn')->willReturn('ORDER-123');
         $mockContract->method('getUser')->willReturn($this->createNormalUser('test@example.com', 'password123'));
         $mockContract->method('getState')->willReturn(OrderState::PAID);
-        $mockContract->method('getCreateTime')->willReturn(new \DateTimeImmutable());
         $mockContract->method('getPrices')->willReturn(new ArrayCollection());
 
         // Mock order product
         $mockOrderProduct = $this->createMock(OrderProduct::class);
         $mockOrderProduct->method('getContract')->willReturn($mockContract);
         $mockOrderProduct->method('getQuantity')->willReturn(2);
-        $mockOrderProduct->method('getId')->willReturn(1);
         $mockOrderProduct->method('getSpu')->willReturn($this->createMockSpu());
         $mockOrderProduct->method('getSku')->willReturn(null);
         $mockOrderProduct->method('getPrices')->willReturn(new ArrayCollection());
 
-        // Mock aftersales
-        $mockAftersales = $this->createMock(Aftersales::class);
-        $mockAftersales->method('getId')->willReturn('aftersales-1');
-        $mockAftersales->method('getState')->willReturn(AftersalesState::PENDING_APPROVAL);
-        $mockAftersales->method('getStage')->willReturn(AftersalesStage::APPLY);
+        // 创建真实的 Aftersales 对象并使用 reflection 设置 ID
+        $mockAftersales = new Aftersales();
+        $reflection = new \ReflectionClass($mockAftersales);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($mockAftersales, 'aftersales-1');
+
+        // 设置其他必要属性
+        $mockAftersales->setState(AftersalesState::PENDING_APPROVAL);
+        $mockAftersales->setStage(AftersalesStage::APPLY);
 
         $this->contractRepository->method('find')->willReturn($mockContract);
         $this->orderProductRepository->method('find')->willReturn($mockOrderProduct);

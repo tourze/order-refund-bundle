@@ -43,7 +43,6 @@ final class AftersalesDataBuilderTest extends TestCase
         $contract = $this->createMock(Contract::class);
         $contract->method('getSn')->willReturn('ORDER-123');
         $contract->method('getState')->willReturn(OrderState::INIT);
-        $contract->method('getCreateTime')->willReturn(new \DateTimeImmutable('2024-01-01'));
         $contract->method('getPrices')->willReturn(new ArrayCollection());
 
         $user = $this->createMock(UserInterface::class);
@@ -57,6 +56,7 @@ final class AftersalesDataBuilderTest extends TestCase
         $this->assertSame('user@test.com', $result['userId']);
         $this->assertSame(0.0, $result['totalAmount']);
         $this->assertSame([], $result['extra']);
+        $this->assertArrayHasKey('orderCreateTime', $result);
     }
 
     public function testBuildProductDataWithMinimalData(): void
@@ -84,10 +84,16 @@ final class AftersalesDataBuilderTest extends TestCase
 
     public function testBuildAftersalesResponse(): void
     {
-        $aftersales = $this->createMock(Aftersales::class);
-        $aftersales->method('getId')->willReturn('100');
-        $aftersales->method('getState')->willReturn(AftersalesState::PENDING_APPROVAL);
-        $aftersales->method('getStage')->willReturn(AftersalesStage::APPLY);
+        // 创建真实的 Aftersales 对象并使用 reflection 设置 ID
+        $aftersales = new Aftersales();
+        $reflection = new \ReflectionClass($aftersales);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($aftersales, '100');
+
+        // 设置其他必要属性
+        $aftersales->setState(AftersalesState::PENDING_APPROVAL);
+        $aftersales->setStage(AftersalesStage::APPLY);
 
         $orderProduct = $this->createMock(OrderProduct::class);
         $spu = $this->createMock(Spu::class);

@@ -66,9 +66,24 @@ final class GetAftersalesDetailProcedureTest extends AbstractProcedureTestCase
         $user = $this->createNormalUser('test@example.com', 'password123');
         $this->setAuthenticatedUser($user);
 
-        // 创建Mock售后数据
-        $aftersales = $this->createMock(Aftersales::class);
-        $aftersales->method('getId')->willReturn('123');
+        // 创建Mock售后数据，排除 final 方法
+        $aftersales = $this->getMockBuilder(Aftersales::class)
+            ->onlyMethods([
+                'getReferenceNumber', 'getProductId', 'getProductName', 'getSkuId', 'getSkuName',
+                'getQuantity', 'getType', 'getReason', 'getState', 'getStage', 'getDescription',
+                'getTotalRefundAmount', 'getOriginalRefundAmount', 'getActualRefundAmount',
+                'isRefundAmountModified', 'getRefundAmountModifyReason', 'getProofImages',
+                'getRejectReason', 'getServiceNote', 'canModify', 'canCancel', 'getAvailableActions',
+                'getAuditTime', 'getCompletedTime', 'getProductSnapshot', 'getModificationCount', 'getUser'
+            ])
+            ->getMock();
+
+        // 使用 reflection 设置 ID
+        $reflection = new \ReflectionClass($aftersales);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($aftersales, '123');
+
         $aftersales->method('getReferenceNumber')->willReturn('TEST-REF-001');
         $aftersales->method('getProductId')->willReturn('product-1');
         $aftersales->method('getProductName')->willReturn('Test Product');
@@ -91,10 +106,8 @@ final class GetAftersalesDetailProcedureTest extends AbstractProcedureTestCase
         $aftersales->method('canModify')->willReturn(true);
         $aftersales->method('canCancel')->willReturn(true);
         $aftersales->method('getAvailableActions')->willReturn(['modify', 'cancel']);
-        $aftersales->method('getCreateTime')->willReturn(new \DateTimeImmutable('2023-01-01 10:00:00'));
         $aftersales->method('getAuditTime')->willReturn(null);
         $aftersales->method('getCompletedTime')->willReturn(null);
-        $aftersales->method('getUpdateTime')->willReturn(new \DateTimeImmutable('2023-01-01 10:00:00'));
         $aftersales->method('getProductSnapshot')->willReturn([
             'productMainImage' => 'https://example.com/image.jpg',
             'skuMainImage' => 'https://example.com/sku-image.jpg',
@@ -157,8 +170,16 @@ final class GetAftersalesDetailProcedureTest extends AbstractProcedureTestCase
         $user2 = $this->createNormalUser('user2@example.com', 'password123');
 
         // 创建属于用户1的Mock售后数据
-        $aftersales = $this->createMock(Aftersales::class);
-        $aftersales->method('getId')->willReturn('456');
+        $aftersales = $this->getMockBuilder(Aftersales::class)
+            ->onlyMethods(['getUser'])
+            ->getMock();
+
+        // 使用 reflection 设置 ID
+        $reflection = new \ReflectionClass($aftersales);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($aftersales, '456');
+
         $aftersales->method('getUser')->willReturn($user1);
 
         // 使用用户2登录

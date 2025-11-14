@@ -77,8 +77,20 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testFormatAddressForApiReturnsFormattedArray(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
-        $address->method('getId')->willReturn('123');
+        $address = $this->getMockBuilder(ReturnAddress::class)
+            ->onlyMethods([
+                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
+                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
+                'getSpecialInstructions', 'getCompanyName'
+            ])
+            ->getMock();
+
+        // 使用 reflection 设置 ID
+        $reflection = new \ReflectionClass($address);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($address, '123');
+
         $address->method('getName')->willReturn('测试地址');
         $address->method('getContactName')->willReturn('张三');
         $address->method('getContactPhone')->willReturn('13800138000');
@@ -159,8 +171,20 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testGetAvailableAddressesForApi(): void
     {
-        $address1 = $this->createMock(ReturnAddress::class);
-        $address1->method('getId')->willReturn('1');
+        $address1 = $this->getMockBuilder(ReturnAddress::class)
+            ->onlyMethods([
+                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
+                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
+                'getSpecialInstructions', 'getCompanyName'
+            ])
+            ->getMock();
+
+        // 使用 reflection 设置 ID
+        $reflection = new \ReflectionClass($address1);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($address1, '1');
+
         $address1->method('getName')->willReturn('地址1');
         $address1->method('getContactName')->willReturn('张三');
         $address1->method('getContactPhone')->willReturn('13800138000');
@@ -174,8 +198,20 @@ class ReturnAddressServiceTest extends TestCase
         $address1->method('getSpecialInstructions')->willReturn('说明1');
         $address1->method('getCompanyName')->willReturn('公司1');
 
-        $address2 = $this->createMock(ReturnAddress::class);
-        $address2->method('getId')->willReturn('2');
+        $address2 = $this->getMockBuilder(ReturnAddress::class)
+            ->onlyMethods([
+                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
+                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
+                'getSpecialInstructions', 'getCompanyName'
+            ])
+            ->getMock();
+
+        // 使用 reflection 设置 ID
+        $reflection2 = new \ReflectionClass($address2);
+        $idProperty2 = $reflection2->getProperty('id');
+        $idProperty2->setAccessible(true);
+        $idProperty2->setValue($address2, '2');
+
         $address2->method('getName')->willReturn('地址2');
         $address2->method('getContactName')->willReturn('李四');
         $address2->method('getContactPhone')->willReturn('13900139000');
@@ -272,8 +308,20 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testGetDefaultAddressForApi(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
-        $address->method('getId')->willReturn('123');
+        $address = $this->getMockBuilder(ReturnAddress::class)
+            ->onlyMethods([
+                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
+                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
+                'getSpecialInstructions', 'getCompanyName'
+            ])
+            ->getMock();
+
+        // 使用 reflection 设置 ID
+        $reflection = new \ReflectionClass($address);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($address, '123');
+
         $address->method('getName')->willReturn('默认地址');
         $address->method('getContactName')->willReturn('张三');
         $address->method('getContactPhone')->willReturn('13800138000');

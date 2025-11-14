@@ -46,8 +46,21 @@ final class GetAftersalesListProcedureTest extends AbstractProcedureTestCase
     {
         // Security mock已在setUp中设置用户
 
-        $mockAftersales = $this->createMock(Aftersales::class);
-        $mockAftersales->method('getId')->willReturn('1');
+        // 创建Mock售后数据，排除 final 方法
+        $mockAftersales = $this->getMockBuilder(Aftersales::class)
+            ->onlyMethods([
+                'getType', 'getReason', 'getState', 'getStage', 'getTotalRefundAmount',
+                'getDescription', 'getProofImages', 'canModify', 'canCancel', 'getAvailableActions',
+                'getAuditTime', 'getCompletedTime'
+            ])
+            ->getMock();
+
+        // 使用 reflection 设置 ID
+        $reflection = new \ReflectionClass($mockAftersales);
+        $idProperty = $reflection->getProperty('id');
+        $idProperty->setAccessible(true);
+        $idProperty->setValue($mockAftersales, '1');
+
         $mockAftersales->method('getType')->willReturn(AftersalesType::REFUND_ONLY);
         $mockAftersales->method('getReason')->willReturn(RefundReason::QUALITY_ISSUE);
         $mockAftersales->method('getState')->willReturn(AftersalesState::PENDING_APPROVAL);
@@ -58,7 +71,6 @@ final class GetAftersalesListProcedureTest extends AbstractProcedureTestCase
         $mockAftersales->method('canModify')->willReturn(true);
         $mockAftersales->method('canCancel')->willReturn(true);
         $mockAftersales->method('getAvailableActions')->willReturn(['approve', 'reject']);
-        $mockAftersales->method('getCreateTime')->willReturn(new \DateTimeImmutable('2023-01-01 10:00:00'));
         $mockAftersales->method('getAuditTime')->willReturn(null);
         $mockAftersales->method('getCompletedTime')->willReturn(null);
 

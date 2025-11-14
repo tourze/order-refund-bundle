@@ -65,11 +65,9 @@ final class CalculateRefundInfoProcedureTest extends AbstractProcedureTestCase
         $mockContract->method('getSn')->willReturn('ORDER-123');
         $mockContract->method('getUser')->willReturn($this->createNormalUser('test@example.com', 'password123'));
         $mockContract->method('getState')->willReturn(OrderState::PAID);
-        $mockContract->method('getCreateTime')->willReturn(new \DateTimeImmutable());
 
         // Mock order product
         $mockOrderProduct = $this->createMock(OrderProduct::class);
-        $mockOrderProduct->method('getId')->willReturn(1);
         $mockOrderProduct->method('getContract')->willReturn($mockContract);
         $mockOrderProduct->method('getQuantity')->willReturn(2);
         $mockOrderProduct->method('getSpu')->willReturn($this->createMockSpu());
