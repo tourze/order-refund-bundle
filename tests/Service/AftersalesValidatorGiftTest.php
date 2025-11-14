@@ -8,11 +8,13 @@ use InvalidArgumentException;
 use OrderCoreBundle\Entity\Contract;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\OrderProductRepository;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\OrderRefundBundle\Service\AftersalesValidator;
 
+#[CoversClass(AftersalesValidator::class)]
 class AftersalesValidatorGiftTest extends TestCase
 {
     private AftersalesValidator $validator;

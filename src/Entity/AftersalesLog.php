@@ -228,7 +228,7 @@ class AftersalesLog implements \Stringable
     public function setUserOperator(UserInterface $user): void
     {
         $this->operatorType = 'USER';
-        $this->operatorId = (string) $user->getUserIdentifier();
+        $this->operatorId = $user->getUserIdentifier();
         $this->operatorName = $user->getUserIdentifier();
         $this->user = $user;
     }

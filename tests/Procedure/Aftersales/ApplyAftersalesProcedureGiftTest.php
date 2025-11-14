@@ -7,6 +7,7 @@ namespace Tourze\OrderRefundBundle\Tests\Procedure\Aftersales;
 use OrderCoreBundle\Entity\Contract;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\ContractRepository;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -18,6 +19,7 @@ use Tourze\OrderRefundBundle\Service\AftersalesDataBuilder;
 use Tourze\OrderRefundBundle\Service\AftersalesService;
 use Tourze\OrderRefundBundle\Service\AftersalesValidator;
 
+#[CoversClass(ApplyAftersalesProcedure::class)]
 class ApplyAftersalesProcedureGiftTest extends TestCase
 {
     private ApplyAftersalesProcedure $procedure;

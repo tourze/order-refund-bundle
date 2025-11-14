@@ -87,16 +87,18 @@ final class AftersalesValidatorTest extends TestCase
 
     public function testValidateContractSuccess(): void
     {
-        $contract = $this->createMock(Contract::class);
         $user = $this->createMock(UserInterface::class);
-        $contract->method('getUser')->willReturn($user);
+
+        $contract = $this->createMock(Contract::class);
+        $contract->expects($this->once())
+            ->method('getUser')
+            ->willReturn($user);
 
         $contractId = 'CONTRACT123';
         $items = [['orderProductId' => '1', 'quantity' => 2]];
 
         // Should not throw exception
         $this->validator->validateContract($contractId, $items, $contract, $user);
-        $this->assertTrue(true);
     }
 
     public function testValidateContractEmptyId(): void

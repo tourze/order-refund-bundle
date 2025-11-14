@@ -102,9 +102,10 @@ class SubmitReturnExpressProcedureTest extends AbstractProcedureTestCase
     {
         // 准备测试数据
         $aftersales = $this->createValidAftersales($this->mockUser);
-        $returnOrder = $this->createMock(ReturnOrder::class);
+        $returnOrder = $this->getMockBuilder(ReturnOrder::class)
+            ->onlyMethods(['isShipped', 'getExpressCompany', 'getTrackingNo', 'getShipTime'])
+            ->getMock();
         $returnOrder->method('isShipped')->willReturn(false);
-        $returnOrder->method('getId')->willReturn('1');
         $returnOrder->method('getExpressCompany')->willReturn('YTO');
         $returnOrder->method('getTrackingNo')->willReturn('YTO1234567890');
         $returnOrder->method('getShipTime')->willReturn(new \DateTimeImmutable('2023-01-01 12:00:00'));
@@ -303,12 +304,13 @@ class SubmitReturnExpressProcedureTest extends AbstractProcedureTestCase
 
     public function testExecuteUpdatesAftersalesStageFromReturnToReceive(): void
     {
-        $aftersales = $this->createMock(Aftersales::class);
+        $aftersales = $this->getMockBuilder(Aftersales::class)
+            ->onlyMethods(['getUser', 'getType', 'getState', 'getStage', 'setStage'])
+            ->getMock();
         $aftersales->method('getUser')->willReturn($this->mockUser);
         $aftersales->method('getType')->willReturn(AftersalesType::RETURN_REFUND);
         $aftersales->method('getState')->willReturn(AftersalesState::APPROVED);
         $aftersales->method('getStage')->willReturn(AftersalesStage::RETURN);
-        $aftersales->method('getId')->willReturn('1');
 
         $returnOrder = new ReturnOrder();
 
@@ -328,12 +330,13 @@ class SubmitReturnExpressProcedureTest extends AbstractProcedureTestCase
 
     private function createValidAftersales(UserInterface $user): Aftersales&MockObject
     {
-        $aftersales = $this->createMock(Aftersales::class);
+        $aftersales = $this->getMockBuilder(Aftersales::class)
+            ->onlyMethods(['getUser', 'getType', 'getState', 'getStage', 'setStage'])
+            ->getMock();
         $aftersales->method('getUser')->willReturn($user);
         $aftersales->method('getType')->willReturn(AftersalesType::RETURN_REFUND);
         $aftersales->method('getState')->willReturn(AftersalesState::APPROVED);
         $aftersales->method('getStage')->willReturn(AftersalesStage::RETURN);
-        $aftersales->method('getId')->willReturn('1');
 
         return $aftersales;
     }

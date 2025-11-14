@@ -618,7 +618,7 @@ readonly class OmsAftersalesSyncService
         try {
             // 使用searchUsers方法查找用户，因为UserManagerInterface不支持findOneBy
             $users = $this->userRepository->searchUsers($phone, 1);
-            if (!empty($users)) {
+            if ([] !== $users) {
                 // 如果找到用户，尝试通过用户标识符加载完整用户对象
                 $user = $this->userRepository->loadUserByIdentifier((string) $users[0]['id']);
                 if (null !== $user) {
