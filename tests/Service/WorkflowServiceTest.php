@@ -6,7 +6,7 @@ namespace Tourze\OrderRefundBundle\Tests\Service;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
 use Tourze\OrderRefundBundle\Service\EventDispatcherService;
 use Tourze\OrderRefundBundle\Service\WorkflowService;
@@ -23,13 +23,8 @@ class WorkflowServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        // Create a dummy EventDispatcherInterface implementation
-        $symfonyEventDispatcher = new class implements EventDispatcherInterface {
-            public function dispatch(object $event, ?string $eventName = null): object
-            {
-                return $event;
-            }
-        };
+        // Use real Symfony EventDispatcher instead of mock
+        $symfonyEventDispatcher = new EventDispatcher();
 
         $this->eventDispatcherService = new EventDispatcherService($symfonyEventDispatcher);
         $this->service = new WorkflowService($this->eventDispatcherService);
