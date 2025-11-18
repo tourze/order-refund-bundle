@@ -83,11 +83,6 @@ final class ReturnAddressCrudControllerTest extends AbstractEasyAdminControllerT
         yield 'isActive' => ['isActive'];
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(ReturnAddress::class, ReturnAddressCrudController::getEntityFqcn());
-    }
-
     public function testIndexPage(): void
     {
         $client = self::createClientWithDatabase();

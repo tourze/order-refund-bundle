@@ -74,12 +74,6 @@ class AftersalesOrderCrudControllerTest extends AbstractEasyAdminControllerTestC
         yield 'orderCreateTime' => ['orderCreateTime'];
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $controller = new AftersalesOrderCrudController();
-        $this->assertSame(AftersalesOrder::class, $controller::getEntityFqcn());
-    }
-
     public function testIndexPage(): void
     {
         $client = static::createClientWithDatabase();

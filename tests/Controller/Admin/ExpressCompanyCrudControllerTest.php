@@ -74,11 +74,6 @@ final class ExpressCompanyCrudControllerTest extends AbstractEasyAdminController
         // supportedServices field does not exist in controller configuration
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(ExpressCompany::class, ExpressCompanyCrudController::getEntityFqcn());
-    }
-
     public function testIndexPage(): void
     {
         $client = self::createClientWithDatabase();

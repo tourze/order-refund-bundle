@@ -59,7 +59,7 @@ packages/order-refund-bundle/
     "name": "tourze/order-refund-bundle",
     "type": "symfony-bundle",
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
         "symfony/framework-bundle": "^7.3",
         "doctrine/orm": "^3.0",
         "doctrine/doctrine-bundle": "^2.13"

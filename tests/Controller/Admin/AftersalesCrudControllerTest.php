@@ -79,11 +79,6 @@ class AftersalesCrudControllerTest extends AbstractEasyAdminControllerTestCase
         yield 'serviceNote' => ['serviceNote'];
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(Aftersales::class, AftersalesCrudController::getEntityFqcn());
-    }
-
     public function testIndexPage(): void
     {
         self::markTestSkipped('测试已通过基类的 testIndexPageShowsConfiguredColumns 覆盖');

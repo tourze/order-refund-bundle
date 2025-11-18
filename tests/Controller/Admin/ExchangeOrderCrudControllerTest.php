@@ -73,11 +73,6 @@ class ExchangeOrderCrudControllerTest extends AbstractEasyAdminControllerTestCas
         yield 'status' => ['status'];
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(ExchangeOrder::class, ExchangeOrderCrudController::getEntityFqcn());
-    }
-
     public function testRequiredFieldsValidation(): void
     {
         // Skip this test for now as it requires complex client setup

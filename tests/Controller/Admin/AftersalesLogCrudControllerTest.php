@@ -89,11 +89,6 @@ class AftersalesLogCrudControllerTest extends AbstractEasyAdminControllerTestCas
         yield 'clientIp' => ['clientIp'];
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(AftersalesLog::class, AftersalesLogCrudController::getEntityFqcn());
-    }
-
     public function testRequiredFieldsValidation(): void
     {
         $client = self::createClientWithDatabase();

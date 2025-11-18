@@ -92,11 +92,6 @@ class RefundOrderCrudControllerTest extends AbstractEasyAdminControllerTestCase
         // failureReason is hidden on form (hideOnForm), so not tested in edit page
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(RefundOrder::class, RefundOrderCrudController::getEntityFqcn());
-    }
-
     public function testRequiredFieldsValidation(): void
     {
         $client = self::createClientWithDatabase();

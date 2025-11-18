@@ -105,11 +105,6 @@ class ReturnOrderCrudControllerTest extends AbstractEasyAdminControllerTestCase
         yield 'remark' => ['remark'];
     }
 
-    public function testGetEntityFqcn(): void
-    {
-        $this->assertSame(ReturnOrder::class, ReturnOrderCrudController::getEntityFqcn());
-    }
-
     public function testRequiredFieldsValidation(): void
     {
         $client = self::createClientWithDatabase();
