@@ -26,7 +26,7 @@ use Tourze\OrderRefundBundle\Service\AutoAuditService;
     description: '自动处理超时的售后申请',
 )]
 #[WithMonologChannel(channel: 'order_refund')]
-class ProcessTimeoutAftersalesCommand extends Command
+final class ProcessTimeoutAftersalesCommand extends Command
 {
     public function __construct(
         private readonly AftersalesRepository $aftersalesRepository,

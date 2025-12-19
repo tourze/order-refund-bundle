@@ -5,21 +5,23 @@ declare(strict_types=1);
 namespace Tourze\OrderRefundBundle\Procedure\Refund;
 
 use OrderCoreBundle\Entity\Contract;
-use Symfony\Component\Security\Core\User\UserInterface;
 use OrderCoreBundle\Entity\OrderProduct;
 use OrderCoreBundle\Repository\ContractRepository;
 use OrderCoreBundle\Repository\OrderProductRepository;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Constraints as Assert;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
-use Tourze\JsonRPC\Core\Attribute\MethodParam;
 use Tourze\JsonRPC\Core\Attribute\MethodTag;
+use Tourze\JsonRPC\Core\Contracts\RpcParamInterface;
 use Tourze\JsonRPC\Core\Exception\ApiException;
 use Tourze\JsonRPC\Core\Procedure\BaseProcedure;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\OrderRefundBundle\DTO\RefundCalculationItem;
 use Tourze\OrderRefundBundle\DTO\RefundCalculationResult;
+use Tourze\OrderRefundBundle\Param\Refund\CalculateRefundInfoParam;
 use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 
 #[MethodTag(name: '退款管理')]
@@ -28,18 +30,6 @@ use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 #[IsGranted(attribute: 'ROLE_USER')]
 class CalculateRefundInfoProcedure extends BaseProcedure
 {
-    #[MethodParam(description: '订单ID')]
-    #[Assert\NotBlank]
-    public string $contractId = '';
-
-    /**
-     * @var array<array{orderProductId: string, quantity: int}>
-     */
-    #[MethodParam(description: '商品退款申请列表')]
-    #[Assert\NotBlank]
-    #[Assert\Type(type: 'array')]
-    public array $items = [];
-
     public function __construct(
         private readonly Security $security,
         private readonly ContractRepository $contractRepository,
@@ -48,7 +38,10 @@ class CalculateRefundInfoProcedure extends BaseProcedure
     ) {
     }
 
-    public function execute(): array
+    /**
+     * @phpstan-param CalculateRefundInfoParam $param
+     */
+    public function execute(CalculateRefundInfoParam|RpcParamInterface $param): ArrayResult
     {
         $user = $this->security->getUser();
         if (!$user instanceof UserInterface) {
@@ -56,13 +49,13 @@ class CalculateRefundInfoProcedure extends BaseProcedure
         }
 
         // 1. 验证订单存在且属于当前用户
-        $contract = $this->validateContract($user);
+        $contract = $this->validateContract($user, $param);
 
         // 2. 验证items参数格式
-        $this->validateItems();
+        $this->validateItems($param);
 
         // 3. 批量查询订单商品信息
-        $orderProducts = $this->getOrderProductsByIds($contract);
+        $orderProducts = $this->getOrderProductsByIds($contract, $param);
 
         // 4. 批量查询所有商品的售后历史记录
         $refundHistory = $this->getRefundHistoryBatch(array_keys($orderProducts));
@@ -72,7 +65,7 @@ class CalculateRefundInfoProcedure extends BaseProcedure
         $totalRefundableAmount = '0.00';
         $validationErrors = [];
 
-        foreach ($this->items as $requestItem) {
+        foreach ($param->items as $requestItem) {
             $orderProduct = $orderProducts[$requestItem['orderProductId']] ?? null;
             if (null === $orderProduct) {
                 $validationErrors[] = "商品不存在: {$requestItem['orderProductId']}";
@@ -101,7 +94,7 @@ class CalculateRefundInfoProcedure extends BaseProcedure
         }
 
         $result = new RefundCalculationResult(
-            contractId: $this->contractId,
+            contractId: $param->contractId,
             orderNumber: $contract->getSn(),
             totalRefundableAmount: $totalRefundableAmount,
             canRefund: $canRefund,
@@ -110,16 +103,16 @@ class CalculateRefundInfoProcedure extends BaseProcedure
             refundRules: $this->getRefundRules($contract)
         );
 
-        return $result->toArray();
+        return new ArrayResult($result->toArray());
     }
 
-    private function validateContract(UserInterface $user): Contract
+    private function validateContract(UserInterface $user, CalculateRefundInfoParam $param): Contract
     {
-        if ('' === $this->contractId) {
+        if ('' === $param->contractId) {
             throw new ApiException('订单ID不能为空');
         }
 
-        $contract = $this->contractRepository->find($this->contractId);
+        $contract = $this->contractRepository->find($param->contractId);
         if (null === $contract) {
             throw new ApiException('订单不存在');
         }
@@ -131,13 +124,13 @@ class CalculateRefundInfoProcedure extends BaseProcedure
         return $contract;
     }
 
-    private function validateItems(): void
+    private function validateItems(CalculateRefundInfoParam $param): void
     {
-        if ([] === $this->items) {
+        if ([] === $param->items) {
             throw new ApiException('商品退款申请列表不能为空');
         }
 
-        foreach ($this->items as $index => $item) {
+        foreach ($param->items as $index => $item) {
             // Runtime validation needed for test cases that use reflection to inject invalid data
             if (!array_key_exists('orderProductId', $item) || !array_key_exists('quantity', $item)) {
                 throw new ApiException('第 ' . ($index + 1) . ' 个商品项目格式不正确，缺少必要字段');
@@ -156,9 +149,9 @@ class CalculateRefundInfoProcedure extends BaseProcedure
     /**
      * @return array<string, OrderProduct>
      */
-    private function getOrderProductsByIds(Contract $contract): array
+    private function getOrderProductsByIds(Contract $contract, CalculateRefundInfoParam $param): array
     {
-        $orderProductIds = array_column($this->items, 'orderProductId');
+        $orderProductIds = array_column($param->items, 'orderProductId');
         $orderProducts = $this->orderProductRepository->findBy(['id' => $orderProductIds]);
 
         $result = [];
@@ -169,7 +162,6 @@ class CalculateRefundInfoProcedure extends BaseProcedure
             }
         }
 
-        /** @var array<string, OrderProduct> */
         return $result;
     }
 

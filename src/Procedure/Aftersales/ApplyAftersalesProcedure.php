@@ -12,12 +12,14 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
-use Tourze\JsonRPC\Core\Attribute\MethodParam;
 use Tourze\JsonRPC\Core\Attribute\MethodTag;
+use Tourze\JsonRPC\Core\Contracts\RpcParamInterface;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\JsonRPC\Core\Exception\ApiException;
 use Tourze\JsonRPC\Core\Procedure\BaseProcedure;
 use Tourze\OrderRefundBundle\Enum\AftersalesType;
 use Tourze\OrderRefundBundle\Enum\RefundReason;
+use Tourze\OrderRefundBundle\Param\Aftersales\ApplyAftersalesParam;
 use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 use Tourze\OrderRefundBundle\Service\AftersalesDataBuilder;
 use Tourze\OrderRefundBundle\Service\AftersalesService;
@@ -29,26 +31,6 @@ use Tourze\OrderRefundBundle\Service\AftersalesValidator;
 #[IsGranted(attribute: 'ROLE_USER')]
 class ApplyAftersalesProcedure extends BaseProcedure
 {
-    #[MethodParam(description: '订单ID')]
-    public string $contractId = '';
-
-    #[MethodParam(description: '售后类型')]
-    public ?string $type = null;
-
-    #[MethodParam(description: '退款原因')]
-    public ?string $reason = null;
-
-    #[MethodParam(description: '问题描述')]
-    public ?string $description = null;
-
-    /** @var array<string> */
-    #[MethodParam(description: '凭证图片')]
-    public array $proofImages = [];
-
-    /** @var array<array{orderProductId: string, quantity: int}> */
-    #[MethodParam(description: '售后商品列表')]
-    public array $items = [];
-
     public function __construct(
         private readonly Security $security,
         private readonly AftersalesService $aftersalesService,
@@ -59,20 +41,23 @@ class ApplyAftersalesProcedure extends BaseProcedure
     ) {
     }
 
-    public function execute(): array
+    /**
+     * @phpstan-param ApplyAftersalesParam $param
+     */
+    public function execute(ApplyAftersalesParam|RpcParamInterface $param): ArrayResult
     {
         $user = $this->getCurrentUser();
-        $type = $this->validator->validateAftersalesType($this->type);
-        $reason = $this->validator->validateRefundReason($this->reason);
+        $type = $this->validator->validateAftersalesType($param->type);
+        $reason = $this->validator->validateRefundReason($param->reason);
 
         try {
-            $contract = $this->validateContract($user);
+            $contract = $this->validateContract($user, $param);
             if ($contract->getType() === 'redeem'){
                 throw new ApiException('赠品不允许售后，如有疑问请联系客服');
             }
             $baseOrderData = $this->dataBuilder->buildBaseOrderData($contract, $user);
 
-            return $this->processAftersalesItems($contract, $baseOrderData, $type, $reason, $user);
+            return new ArrayResult($this->processAftersalesItems($contract, $baseOrderData, $type, $reason, $user, $param));
         } catch (\InvalidArgumentException $e) {
             throw new ApiException($e->getMessage());
         } catch (\Exception $e) {
@@ -90,14 +75,14 @@ class ApplyAftersalesProcedure extends BaseProcedure
         return $user;
     }
 
-    private function validateContract(UserInterface $user): Contract
+    private function validateContract(UserInterface $user, ApplyAftersalesParam $param): Contract
     {
-        $contract = $this->contractRepository->find($this->contractId);
+        $contract = $this->contractRepository->find($param->contractId);
         if (null === $contract) {
             throw new ApiException('订单不存在');
         }
 
-        $this->validator->validateContract($this->contractId, $this->items, $contract, $user);
+        $this->validator->validateContract($param->contractId, $param->items, $contract, $user);
 
         return $contract;
     }
@@ -112,17 +97,18 @@ class ApplyAftersalesProcedure extends BaseProcedure
         AftersalesType $type,
         RefundReason $reason,
         UserInterface $user,
+        ApplyAftersalesParam $param,
     ): array {
         $aftersalesList = [];
         $errors = [];
 
-        $orderProductIds = array_column($this->items, 'orderProductId');
+        $orderProductIds = array_column($param->items, 'orderProductId');
         $activeAftersales = $this->aftersalesRepository->findActiveAftersalesByOrderProductIds($orderProductIds);
 
-        foreach ($this->items as $index => $item) {
+        foreach ($param->items as $index => $item) {
             $result = $this->processSingleAftersalesItem(
                 $contract, $baseOrderData, $type, $reason, $user,
-                $item, $index, $activeAftersales
+                $item, $index, $activeAftersales, $param
             );
 
             if (null !== $result['aftersales']) {
@@ -152,6 +138,7 @@ class ApplyAftersalesProcedure extends BaseProcedure
         array $item,
         int $index,
         array $activeAftersales,
+        ApplyAftersalesParam $param,
     ): array {
         try {
             $orderProduct = $this->validator->validateAftersalesItem(
@@ -181,8 +168,8 @@ class ApplyAftersalesProcedure extends BaseProcedure
                 $quantity,
                 $type,
                 $reason,
-                $this->description,
-                $this->proofImages,
+                $param->description,
+                $param->proofImages,
                 $user
             );
 
@@ -223,6 +210,6 @@ class ApplyAftersalesProcedure extends BaseProcedure
     //         throw new ApiException('用户未登录或类型错误');
     //     }
     //
-    //     return [sprintf('aftersales_apply:%s:%s', $user->getUserIdentifier(), $this->contractId)];
+    //     return new ArrayResult([sprintf('aftersales_apply:%s:%s', $user->getUserIdentifier(), $this->contractId)]);
     // }
 }

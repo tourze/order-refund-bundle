@@ -7,7 +7,10 @@ namespace Tourze\OrderRefundBundle\Procedure\Return;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
 use Tourze\JsonRPC\Core\Attribute\MethodTag;
+use Tourze\JsonRPC\Core\Contracts\RpcParamInterface;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\JsonRPC\Core\Procedure\BaseProcedure;
+use Tourze\OrderRefundBundle\Param\Return\GetExpressCompaniesProcedureParam;
 use Tourze\OrderRefundBundle\Repository\ExpressCompanyRepository;
 
 #[MethodTag(name: '退货管理')]
@@ -20,7 +23,10 @@ class GetExpressCompaniesProcedure extends BaseProcedure
     ) {
     }
 
-    public function execute(): array
+    /**
+     * @phpstan-param GetExpressCompaniesProcedureParam $param
+     */
+    public function execute(GetExpressCompaniesProcedureParam|RpcParamInterface $param): ArrayResult
     {
         $companies = $this->expressCompanyRepository->findActiveCompanies();
 
@@ -33,9 +39,9 @@ class GetExpressCompaniesProcedure extends BaseProcedure
             ];
         }
 
-        return [
+        return new ArrayResult([
             'companies' => $companiesArray,
             'total' => count($companiesArray),
-        ];
+        ]);
     }
 }

@@ -6,7 +6,6 @@ namespace Tourze\OrderRefundBundle\Tests\Command;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
-use PHPUnit\Framework\MockObject\MockObject;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Tourze\OrderRefundBundle\Command\InitExpressCompaniesCommand;
@@ -21,102 +20,43 @@ use Tourze\PHPUnitSymfonyKernelTest\AbstractCommandTestCase;
 #[RunTestsInSeparateProcesses]
 class InitExpressCompaniesCommandTest extends AbstractCommandTestCase
 {
-    /** @phpstan-ignore property.onlyRead */
     private ExpressCompanyRepository $repository;
 
     protected function onSetUp(): void
     {
-        // @phpstan-ignore method.notFound
-        $this->repository = new class extends ExpressCompanyRepository {
-            /** @var array<string, list<mixed>> */
-            private array $methodCalls = [];
+        $this->repository = self::getService(ExpressCompanyRepository::class);
 
-            /** @var array<int> */
-            private array $countReturnValues = [];
+        // 清空快递公司表
+        $this->clearExpressCompanies();
+    }
 
-            /** @var array<?ExpressCompany> */
-            private array $findByCodeReturnValues = [];
+    protected function onTearDown(): void
+    {
+        // 清理测试数据
+        $this->clearExpressCompanies();
+    }
 
-            /** @var array<int> */
-            private array $countActiveCompaniesReturnValues = [];
+    private function clearExpressCompanies(): void
+    {
+        self::getEntityManager()->createQuery('DELETE FROM ' . ExpressCompany::class)->execute();
+        self::getEntityManager()->clear();
+    }
 
-            private int $countCallIndex = 0;
+    private function createExpressCompany(
+        string $code,
+        string $name,
+        bool $isActive = true,
+        int $sortOrder = 0
+    ): ExpressCompany {
+        $company = new ExpressCompany();
+        $company->setCode($code);
+        $company->setName($name);
+        $company->setIsActive($isActive);
+        $company->setSortOrder($sortOrder);
 
-            private int $findByCodeCallIndex = 0;
+        $this->repository->save($company, true);
 
-            // @phpstan-ignore-next-line constructor.missingParentCall
-            public function __construct()
-            {
-                // Skip parent constructor to avoid dependencies
-            }
-
-            public function setExpectation(string $method, mixed $returnValue): void
-            {
-                switch ($method) {
-                    case 'count':
-                        if (!is_int($returnValue)) {
-                            throw new \InvalidArgumentException('count() expects int, got ' . get_debug_type($returnValue));
-                        }
-                        $this->countReturnValues[] = $returnValue;
-                        break;
-
-                    case 'findByCode':
-                        if (!($returnValue instanceof ExpressCompany || null === $returnValue)) {
-                            throw new \InvalidArgumentException('findByCode() expects ExpressCompany|null, got ' . get_debug_type($returnValue));
-                        }
-                        $this->findByCodeReturnValues[] = $returnValue;
-                        break;
-
-                    case 'countActiveCompanies':
-                        if (!is_int($returnValue)) {
-                            throw new \InvalidArgumentException('countActiveCompanies() expects int, got ' . get_debug_type($returnValue));
-                        }
-                        $this->countActiveCompaniesReturnValues[] = $returnValue;
-                        break;
-
-                    default:
-                        throw new \InvalidArgumentException('Unknown method expectation: ' . $method);
-                }
-            }
-
-            /**
-             * @param array<mixed> $criteria
-             * @return int<0, max>
-             */
-            public function count(array $criteria = []): int
-            {
-                $this->methodCalls['count'][] = $criteria;
-                $index = $this->countCallIndex++;
-                $value = $this->countReturnValues[$index] ?? 0;
-
-                return max(0, $value);
-            }
-
-            public function findByCode(string $code): ?ExpressCompany
-            {
-                $this->methodCalls['findByCode'][] = $code;
-                $index = $this->findByCodeCallIndex++;
-
-                return $this->findByCodeReturnValues[$index] ?? null;
-            }
-
-            public function save(ExpressCompany $entity, bool $flush = false): void
-            {
-                $this->methodCalls['save'][] = [$entity, $flush];
-            }
-
-            public function countActiveCompanies(): int
-            {
-                return $this->countActiveCompaniesReturnValues[0] ?? 0;
-            }
-
-            /** @return array<string, list<mixed>> */
-            public function getMethodCalls(): array
-            {
-                return $this->methodCalls;
-            }
-        };
-        self::getContainer()->set(ExpressCompanyRepository::class, $this->repository);
+        return $company;
     }
 
     protected function getCommandTester(): CommandTester
@@ -129,33 +69,40 @@ class InitExpressCompaniesCommandTest extends AbstractCommandTestCase
 
     public function testExecuteWithEmptyDatabase(): void
     {
-        // 模拟空数据库，count方法会被调用两次：检查现有记录 + 输出统计
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 0);  // 第一次返回0（空数据库）
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 15); // 第二次返回15（插入后）
-
-        // 15个默认公司，findByCode都返回null
-        for ($i = 0; $i < 15; ++$i) {
-            // @phpstan-ignore method.notFound
-            $this->repository->setExpectation('findByCode', null);
-        }
-
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('countActiveCompanies', 15);
+        // 确认数据库为空
+        $this->assertSame(0, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $exitCode = $commandTester->execute([]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
-        $this->assertStringContainsString('已创建: 顺丰 (SF)', $commandTester->getDisplay());
-        $this->assertStringContainsString('初始化完成！创建: 15，更新: 0，跳过: 0', $commandTester->getDisplay());
+
+        // 验证输出包含创建信息
+        $display = $commandTester->getDisplay();
+        $this->assertStringContainsString('已创建: 顺丰 (SF)', $display);
+        $this->assertStringContainsString('初始化完成！创建: 15，更新: 0，跳过: 0', $display);
+
+        // 验证数据库中确实创建了15个记录
+        $this->assertSame(15, $this->repository->count([]));
+
+        // 验证启用的公司数量
+        $this->assertSame(15, $this->repository->countActiveCompanies());
+
+        // 验证顺丰快递的数据
+        $sfExpress = $this->repository->findByCode('SF');
+        $this->assertNotNull($sfExpress);
+        $this->assertSame('顺丰', $sfExpress->getName());
+        $this->assertTrue($sfExpress->isActive());
     }
 
     public function testExecuteWithExistingDataAndNoForce(): void
     {
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 5);
+        // 创建5个快递公司记录
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->createExpressCompany("TEST{$i}", "测试快递{$i}");
+        }
+
+        $this->assertSame(5, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $commandTester->setInputs(['no']); // 用户选择不继续
@@ -163,23 +110,22 @@ class InitExpressCompaniesCommandTest extends AbstractCommandTestCase
         $exitCode = $commandTester->execute([]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
-        $this->assertStringContainsString('系统中已存在 5 个快递公司记录', $commandTester->getDisplay());
+
+        $display = $commandTester->getDisplay();
+        $this->assertStringContainsString('系统中已存在 5 个快递公司记录', $display);
+
+        // 确认没有创建新记录
+        $this->assertSame(5, $this->repository->count([]));
     }
 
     public function testExecuteWithExistingDataAndContinue(): void
     {
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 5);  // 第一次返回5
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 20); // 第二次返回20
-
-        for ($i = 0; $i < 15; ++$i) {
-            // @phpstan-ignore method.notFound
-            $this->repository->setExpectation('findByCode', null);
+        // 创建5个快递公司记录
+        for ($i = 1; $i <= 5; ++$i) {
+            $this->createExpressCompany("TEST{$i}", "测试快递{$i}");
         }
 
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('countActiveCompanies', 20);
+        $this->assertSame(5, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $commandTester->setInputs(['yes']); // 用户选择继续
@@ -187,135 +133,134 @@ class InitExpressCompaniesCommandTest extends AbstractCommandTestCase
         $exitCode = $commandTester->execute([]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
-        $this->assertStringContainsString('初始化完成！创建: 15，更新: 0，跳过: 0', $commandTester->getDisplay());
+
+        $display = $commandTester->getDisplay();
+        $this->assertStringContainsString('初始化完成！创建: 15，更新: 0，跳过: 0', $display);
+
+        // 验证数据库中现在有20个记录（5个旧的 + 15个新的）
+        $this->assertSame(20, $this->repository->count([]));
     }
 
     public function testExecuteWithForceOption(): void
     {
-        // 创建可以被更新的 ExpressCompany 实体
-        $existingCompany = new ExpressCompany();
+        // 创建一个已存在的顺丰快递记录（使用不同的数据）
+        $existingCompany = $this->createExpressCompany('SF', '旧的顺丰名称', false, 999);
+        $existingId = $existingCompany->getId();
 
-        // 使用--force选项时count会被调用两次：检查现有记录 + 输出统计
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 1);  // 第一次返回1
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 15); // 第二次返回15
-
-        // 第一个findByCode返回现有公司，其余返回null
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('findByCode', $existingCompany);
-        for ($i = 0; $i < 14; ++$i) {
-            // @phpstan-ignore method.notFound
-            $this->repository->setExpectation('findByCode', null);
-        }
-
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('countActiveCompanies', 15);
+        $this->assertSame(1, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $exitCode = $commandTester->execute(['--force' => true]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
-        $this->assertStringContainsString('已更新: 顺丰 (SF)', $commandTester->getDisplay());
-        $this->assertStringContainsString('初始化完成！创建: 14，更新: 1，跳过: 0', $commandTester->getDisplay());
 
-        // 验证实体被正确更新
-        $this->assertSame('顺丰', $existingCompany->getName());
-        $this->assertSame('https://www.sf-express.com/chn/sc/dynamic_function/waybill/#search/bill-number/%s', $existingCompany->getTrackingUrlTemplate());
-        $this->assertSame(1, $existingCompany->getSortOrder());
-        $this->assertTrue($existingCompany->isActive());
+        $display = $commandTester->getDisplay();
+        $this->assertStringContainsString('已更新: 顺丰 (SF)', $display);
+        $this->assertStringContainsString('初始化完成！创建: 14，更新: 1，跳过: 0', $display);
+
+        // 验证数据库中有15个记录
+        $this->assertSame(15, $this->repository->count([]));
+
+        // 重新获取顺丰快递并验证已更新
+        self::getEntityManager()->clear();
+        $updatedCompany = $this->repository->findByCode('SF');
+
+        $this->assertNotNull($updatedCompany);
+        $this->assertSame($existingId, $updatedCompany->getId()); // ID未变
+        $this->assertSame('顺丰', $updatedCompany->getName()); // 名称已更新
+        $this->assertSame('https://www.sf-express.com/chn/sc/dynamic_function/waybill/#search/bill-number/%s', $updatedCompany->getTrackingUrlTemplate());
+        $this->assertSame(1, $updatedCompany->getSortOrder()); // 排序已更新
+        $this->assertTrue($updatedCompany->isActive()); // 状态已更新为启用
     }
 
     public function testExecuteWithInactiveOption(): void
     {
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 0);  // 第一次返回0
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 15); // 第二次返回15
-
-        for ($i = 0; $i < 15; ++$i) {
-            // @phpstan-ignore method.notFound
-            $this->repository->setExpectation('findByCode', null);
-        }
-
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('countActiveCompanies', 0);
+        // 确认数据库为空
+        $this->assertSame(0, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $exitCode = $commandTester->execute(['--inactive' => true]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
-        $this->assertStringContainsString('初始化完成！创建: 15，更新: 0，跳过: 0', $commandTester->getDisplay());
+
+        $display = $commandTester->getDisplay();
+        $this->assertStringContainsString('初始化完成！创建: 15，更新: 0，跳过: 0', $display);
+
+        // 验证数据库中有15个记录
+        $this->assertSame(15, $this->repository->count([]));
+
+        // 验证所有公司都是未启用状态
+        $this->assertSame(0, $this->repository->countActiveCompanies());
+
+        // 验证顺丰快递是未启用状态
+        $sfExpress = $this->repository->findByCode('SF');
+        $this->assertNotNull($sfExpress);
+        $this->assertFalse($sfExpress->isActive());
     }
 
     public function testExecuteWithSkippedExisting(): void
     {
-        $existingCompany = new ExpressCompany();
+        // 创建一个已存在的顺丰快递记录
+        $existingCompany = $this->createExpressCompany('SF', '顺丰速运');
+        $existingId = $existingCompany->getId();
 
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 1);  // 第一次返回1
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 15); // 第二次返回15
-
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('findByCode', $existingCompany);
-        for ($i = 0; $i < 14; ++$i) {
-            // @phpstan-ignore method.notFound
-            $this->repository->setExpectation('findByCode', null);
-        }
-
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('countActiveCompanies', 14);
+        $this->assertSame(1, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $commandTester->setInputs(['yes']); // 用户选择继续
 
+        // 不使用 --force 选项，应该跳过已存在的记录
         $exitCode = $commandTester->execute([]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
-        $this->assertStringContainsString('已跳过: 顺丰 (SF) - 已存在', $commandTester->getDisplay());
-        $this->assertStringContainsString('初始化完成！创建: 14，更新: 0，跳过: 1', $commandTester->getDisplay());
+
+        $display = $commandTester->getDisplay();
+        $this->assertStringContainsString('已跳过: 顺丰 (SF) - 已存在', $display);
+        $this->assertStringContainsString('初始化完成！创建: 14，更新: 0，跳过: 1', $display);
+
+        // 验证数据库中有15个记录
+        $this->assertSame(15, $this->repository->count([]));
+
+        // 验证顺丰快递未被修改
+        self::getEntityManager()->clear();
+        $unchangedCompany = $this->repository->findByCode('SF');
+
+        $this->assertNotNull($unchangedCompany);
+        $this->assertSame($existingId, $unchangedCompany->getId());
+        $this->assertSame('顺丰速运', $unchangedCompany->getName()); // 名称未改变
     }
 
     public function testOptionForce(): void
     {
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 1);
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 15);
+        // 创建一个快递公司记录（非预定义代码）
+        $this->createExpressCompany('TEST1', '测试快递1');
 
-        for ($i = 0; $i < 15; ++$i) {
-            // @phpstan-ignore method.notFound
-            $this->repository->setExpectation('findByCode', null);
-        }
-
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('countActiveCompanies', 15);
+        $this->assertSame(1, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $exitCode = $commandTester->execute(['--force' => true]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
+
+        // 验证命令成功执行
+        // 期望有16个记录：15个预定义 + 1个TEST1（不会被删除）
+        $this->assertSame(16, $this->repository->count([]));
+        // 启用的只有15个（TEST1默认启用）+ 预定义的15个 = 16个
+        $this->assertSame(16, $this->repository->countActiveCompanies());
     }
 
     public function testOptionInactive(): void
     {
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 0);
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('count', 15);
-
-        for ($i = 0; $i < 15; ++$i) {
-            // @phpstan-ignore method.notFound
-            $this->repository->setExpectation('findByCode', null);
-        }
-
-        // @phpstan-ignore method.notFound
-        $this->repository->setExpectation('countActiveCompanies', 0);
+        // 确认数据库为空
+        $this->assertSame(0, $this->repository->count([]));
 
         $commandTester = $this->getCommandTester();
         $exitCode = $commandTester->execute(['--inactive' => true]);
 
         $this->assertSame(Command::SUCCESS, $exitCode);
+
+        // 验证命令成功执行
+        $this->assertSame(15, $this->repository->count([]));
+        $this->assertSame(0, $this->repository->countActiveCompanies());
     }
 }

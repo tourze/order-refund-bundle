@@ -5,67 +5,128 @@ declare(strict_types=1);
 namespace Tourze\OrderRefundBundle\Tests\Service;
 
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
 use Tourze\OrderRefundBundle\Entity\ReturnAddress;
 use Tourze\OrderRefundBundle\Repository\ReturnAddressRepository;
 use Tourze\OrderRefundBundle\Service\ReturnAddressService;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractIntegrationTestCase;
 
 /**
  * @internal
  */
 #[CoversClass(ReturnAddressService::class)]
-class ReturnAddressServiceTest extends TestCase
+#[RunTestsInSeparateProcesses]
+final class ReturnAddressServiceTest extends AbstractIntegrationTestCase
 {
-    private MockObject&ReturnAddressRepository $repository;
+    private ReturnAddressRepository $repository;
 
     private ReturnAddressService $service;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
+    private ReturnAddress $defaultAddress;
 
-        $this->repository = $this->createMock(ReturnAddressRepository::class);
-        $this->service = new ReturnAddressService($this->repository);
+    private ReturnAddress $activeAddress;
+
+    private ReturnAddress $inactiveAddress;
+
+    protected function onSetUp(): void
+    {
+        $this->repository = self::getService(ReturnAddressRepository::class);
+        $this->service = self::getService(ReturnAddressService::class);
+
+        // 清理数据库
+        $this->clearTable();
+
+        // 创建测试数据
+        $this->defaultAddress = $this->createAddress(
+            name: '默认地址',
+            isDefault: true,
+            isActive: true,
+            sortOrder: 1
+        );
+
+        $this->activeAddress = $this->createAddress(
+            name: '活跃地址',
+            isDefault: false,
+            isActive: true,
+            sortOrder: 2
+        );
+
+        $this->inactiveAddress = $this->createAddress(
+            name: '非活跃地址',
+            isDefault: false,
+            isActive: false,
+            sortOrder: 3
+        );
+    }
+
+    private function createAddress(
+        string $name,
+        bool $isDefault = false,
+        bool $isActive = true,
+        int $sortOrder = 0,
+        ?string $province = '广东省',
+        ?string $city = '深圳市',
+        ?string $district = '南山区',
+        ?string $address = '测试街道123号',
+        ?string $contactName = '张三',
+        ?string $contactPhone = '13800138000',
+        ?string $zipCode = '518000',
+        ?string $businessHours = '9:00-18:00',
+        ?string $specialInstructions = '请联系张三',
+        ?string $companyName = '测试公司',
+    ): ReturnAddress {
+        $entity = new ReturnAddress();
+        $entity->setName($name);
+        $entity->setProvince($province);
+        $entity->setCity($city);
+        $entity->setDistrict($district);
+        $entity->setAddress($address);
+        $entity->setContactName($contactName);
+        $entity->setContactPhone($contactPhone);
+        $entity->setZipCode($zipCode);
+        $entity->setBusinessHours($businessHours);
+        $entity->setSpecialInstructions($specialInstructions);
+        $entity->setCompanyName($companyName);
+        $entity->setIsDefault($isDefault);
+        $entity->setIsActive($isActive);
+        $entity->setSortOrder($sortOrder);
+
+        $this->repository->save($entity, true);
+
+        return $entity;
+    }
+
+    private function clearTable(): void
+    {
+        $entityManager = self::getEntityManager();
+        $connection = $entityManager->getConnection();
+        $connection->executeStatement('DELETE FROM order_return_addresses');
     }
 
     public function testGetReturnAddressForAftersalesReturnsDefault(): void
     {
-        $defaultAddress = $this->createMock(ReturnAddress::class);
-        $aftersales = $this->createMock(Aftersales::class);
+        $result = $this->service->getReturnAddressForAftersales();
 
-        $this->repository->expects($this->once())
-            ->method('findDefaultAddress')
-            ->willReturn($defaultAddress)
-        ;
-
-        $this->repository->expects($this->never())
-            ->method('findFirstActiveAddress')
-        ;
-
-        $result = $this->service->getReturnAddressForAftersales($aftersales);
-
-        $this->assertSame($defaultAddress, $result);
+        $this->assertSame($this->defaultAddress->getId(), $result->getId());
+        $this->assertSame('默认地址', $result->getName());
     }
 
     public function testGetReturnAddressForAftersalesReturnsFirstActiveWhenNoDefault(): void
     {
-        $firstActiveAddress = $this->createMock(ReturnAddress::class);
-
-        $this->repository->expects($this->once())
-            ->method('findDefaultAddress')
-            ->willReturn(null)
-        ;
-
-        $this->repository->expects($this->once())
-            ->method('findFirstActiveAddress')
-            ->willReturn($firstActiveAddress)
-        ;
+        // 清理并创建没有默认地址的数据
+        $this->clearTable();
+        $firstActiveAddress = $this->createAddress(
+            name: '第一个活跃地址',
+            isDefault: false,
+            isActive: true,
+            sortOrder: 1
+        );
 
         $result = $this->service->getReturnAddressForAftersales();
 
-        $this->assertSame($firstActiveAddress, $result);
+        $this->assertSame($firstActiveAddress->getId(), $result->getId());
+        $this->assertSame('第一个活跃地址', $result->getName());
     }
 
     public function testFormatAddressForApiReturnsNullForNullInput(): void
@@ -77,38 +138,11 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testFormatAddressForApiReturnsFormattedArray(): void
     {
-        $address = $this->getMockBuilder(ReturnAddress::class)
-            ->onlyMethods([
-                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
-                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
-                'getSpecialInstructions', 'getCompanyName'
-            ])
-            ->getMock();
-
-        // 使用 reflection 设置 ID
-        $reflection = new \ReflectionClass($address);
-        $idProperty = $reflection->getProperty('id');
-        $idProperty->setAccessible(true);
-        $idProperty->setValue($address, '123');
-
-        $address->method('getName')->willReturn('测试地址');
-        $address->method('getContactName')->willReturn('张三');
-        $address->method('getContactPhone')->willReturn('13800138000');
-        $address->method('getFullAddress')->willReturn('广东省深圳市南山区测试街道123号');
-        $address->method('getProvince')->willReturn('广东省');
-        $address->method('getCity')->willReturn('深圳市');
-        $address->method('getDistrict')->willReturn('南山区');
-        $address->method('getAddress')->willReturn('测试街道123号');
-        $address->method('getZipCode')->willReturn('518000');
-        $address->method('getBusinessHours')->willReturn('9:00-18:00');
-        $address->method('getSpecialInstructions')->willReturn('请联系张三');
-        $address->method('getCompanyName')->willReturn('测试公司');
-
-        $result = $this->service->formatAddressForApi($address);
+        $result = $this->service->formatAddressForApi($this->defaultAddress);
 
         $this->assertIsArray($result);
-        $this->assertSame('123', $result['id']);
-        $this->assertSame('测试地址', $result['name']);
+        $this->assertSame($this->defaultAddress->getId(), $result['id']);
+        $this->assertSame('默认地址', $result['name']);
         $this->assertSame('张三', $result['contactName']);
         $this->assertSame('13800138000', $result['contactPhone']);
         $this->assertSame('广东省深圳市南山区测试街道123号', $result['fullAddress']);
@@ -124,13 +158,13 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testValidateAddressDataReturnsFalseForIncompleteAddress(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
-        $address->method('getName')->willReturn('');
-        $address->method('getContactName')->willReturn('张三');
-        $address->method('getContactPhone')->willReturn('13800138000');
-        $address->method('getProvince')->willReturn('广东省');
-        $address->method('getCity')->willReturn('深圳市');
-        $address->method('getAddress')->willReturn('测试街道123号');
+        $address = new ReturnAddress();
+        $address->setName(''); // 空名称
+        $address->setContactName('张三');
+        $address->setContactPhone('13800138000');
+        $address->setProvince('广东省');
+        $address->setCity('深圳市');
+        $address->setAddress('测试街道123号');
 
         $result = $this->service->validateAddressData($address);
 
@@ -139,142 +173,63 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testValidateAddressDataReturnsTrueForCompleteAddress(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
-        $address->method('getName')->willReturn('测试地址');
-        $address->method('getContactName')->willReturn('张三');
-        $address->method('getContactPhone')->willReturn('13800138000');
-        $address->method('getProvince')->willReturn('广东省');
-        $address->method('getCity')->willReturn('深圳市');
-        $address->method('getAddress')->willReturn('测试街道123号');
-
-        $result = $this->service->validateAddressData($address);
+        $result = $this->service->validateAddressData($this->defaultAddress);
 
         $this->assertTrue($result);
     }
 
     public function testGetAvailableAddresses(): void
     {
-        $addresses = [
-            $this->createMock(ReturnAddress::class),
-            $this->createMock(ReturnAddress::class),
-        ];
-
-        $this->repository->expects($this->once())
-            ->method('findActiveAddresses')
-            ->willReturn($addresses)
-        ;
-
         $result = $this->service->getAvailableAddresses();
 
-        $this->assertSame($addresses, $result);
+        // 应该只返回活跃的地址，不包括非活跃地址
+        $this->assertCount(2, $result);
+        $names = array_map(fn ($addr) => $addr->getName(), $result);
+        $this->assertContains('默认地址', $names);
+        $this->assertContains('活跃地址', $names);
+        $this->assertNotContains('非活跃地址', $names);
     }
 
     public function testGetAvailableAddressesForApi(): void
     {
-        $address1 = $this->getMockBuilder(ReturnAddress::class)
-            ->onlyMethods([
-                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
-                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
-                'getSpecialInstructions', 'getCompanyName'
-            ])
-            ->getMock();
-
-        // 使用 reflection 设置 ID
-        $reflection = new \ReflectionClass($address1);
-        $idProperty = $reflection->getProperty('id');
-        $idProperty->setAccessible(true);
-        $idProperty->setValue($address1, '1');
-
-        $address1->method('getName')->willReturn('地址1');
-        $address1->method('getContactName')->willReturn('张三');
-        $address1->method('getContactPhone')->willReturn('13800138000');
-        $address1->method('getFullAddress')->willReturn('地址1详情');
-        $address1->method('getProvince')->willReturn('省1');
-        $address1->method('getCity')->willReturn('市1');
-        $address1->method('getDistrict')->willReturn('区1');
-        $address1->method('getAddress')->willReturn('街道1');
-        $address1->method('getZipCode')->willReturn('000001');
-        $address1->method('getBusinessHours')->willReturn('9:00-18:00');
-        $address1->method('getSpecialInstructions')->willReturn('说明1');
-        $address1->method('getCompanyName')->willReturn('公司1');
-
-        $address2 = $this->getMockBuilder(ReturnAddress::class)
-            ->onlyMethods([
-                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
-                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
-                'getSpecialInstructions', 'getCompanyName'
-            ])
-            ->getMock();
-
-        // 使用 reflection 设置 ID
-        $reflection2 = new \ReflectionClass($address2);
-        $idProperty2 = $reflection2->getProperty('id');
-        $idProperty2->setAccessible(true);
-        $idProperty2->setValue($address2, '2');
-
-        $address2->method('getName')->willReturn('地址2');
-        $address2->method('getContactName')->willReturn('李四');
-        $address2->method('getContactPhone')->willReturn('13900139000');
-        $address2->method('getFullAddress')->willReturn('地址2详情');
-        $address2->method('getProvince')->willReturn('省2');
-        $address2->method('getCity')->willReturn('市2');
-        $address2->method('getDistrict')->willReturn('区2');
-        $address2->method('getAddress')->willReturn('街道2');
-        $address2->method('getZipCode')->willReturn('000002');
-        $address2->method('getBusinessHours')->willReturn('8:00-17:00');
-        $address2->method('getSpecialInstructions')->willReturn('说明2');
-        $address2->method('getCompanyName')->willReturn('公司2');
-
-        $this->repository->expects($this->once())
-            ->method('findActiveAddresses')
-            ->willReturn([$address1, $address2])
-        ;
-
         $result = $this->service->getAvailableAddressesForApi();
 
         $this->assertCount(2, $result);
-        $this->assertSame('1', $result[0]['id']);
-        $this->assertSame('地址1', $result[0]['name']);
-        $this->assertSame('2', $result[1]['id']);
-        $this->assertSame('地址2', $result[1]['name']);
+        // 验证第一个地址（按sortOrder排序）
+        $this->assertSame($this->defaultAddress->getId(), $result[0]['id']);
+        $this->assertSame('默认地址', $result[0]['name']);
+        // 验证第二个地址
+        $this->assertSame($this->activeAddress->getId(), $result[1]['id']);
+        $this->assertSame('活跃地址', $result[1]['name']);
     }
 
     public function testSetDefaultAddress(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
+        // 设置活跃地址为默认
+        $this->service->setDefaultAddress($this->activeAddress);
 
-        $this->repository->expects($this->once())
-            ->method('setDefaultAddress')
-            ->with($address)
-        ;
+        // 清除EntityManager缓存以获取最新数据
+        self::getEntityManager()->clear();
 
-        $this->service->setDefaultAddress($address);
+        // 验证设置成功
+        $result = $this->repository->findDefaultAddress();
+        $this->assertSame($this->activeAddress->getId(), $result->getId());
+
+        // 验证旧的默认地址不再是默认
+        $oldDefault = $this->repository->find($this->defaultAddress->getId());
+        $this->assertFalse($oldDefault->isDefault());
     }
 
     public function testGetAddressesByRegion(): void
     {
-        $addresses = [
-            $this->createMock(ReturnAddress::class),
-        ];
-
-        $this->repository->expects($this->once())
-            ->method('findByRegion')
-            ->with('广东省', '深圳市')
-            ->willReturn($addresses)
-        ;
-
         $result = $this->service->getAddressesByRegion('广东省', '深圳市');
 
-        $this->assertSame($addresses, $result);
+        // 应该返回广东省深圳市的活跃地址
+        $this->assertCount(2, $result);
     }
 
     public function testHasAvailableAddressReturnsTrue(): void
     {
-        $this->repository->expects($this->once())
-            ->method('countActiveAddresses')
-            ->willReturn(5)
-        ;
-
         $result = $this->service->hasAvailableAddress();
 
         $this->assertTrue($result);
@@ -282,10 +237,8 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testHasAvailableAddressReturnsFalse(): void
     {
-        $this->repository->expects($this->once())
-            ->method('countActiveAddresses')
-            ->willReturn(0)
-        ;
+        // 清空所有地址
+        $this->clearTable();
 
         $result = $this->service->hasAvailableAddress();
 
@@ -294,145 +247,88 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testGetDefaultOrFirstAddress(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
-
-        $this->repository->expects($this->once())
-            ->method('findDefaultAddress')
-            ->willReturn($address)
-        ;
-
         $result = $this->service->getDefaultOrFirstAddress();
 
-        $this->assertSame($address, $result);
+        $this->assertSame($this->defaultAddress->getId(), $result->getId());
     }
 
     public function testGetDefaultAddressForApi(): void
     {
-        $address = $this->getMockBuilder(ReturnAddress::class)
-            ->onlyMethods([
-                'getName', 'getContactName', 'getContactPhone', 'getFullAddress', 'getProvince',
-                'getCity', 'getDistrict', 'getAddress', 'getZipCode', 'getBusinessHours',
-                'getSpecialInstructions', 'getCompanyName'
-            ])
-            ->getMock();
-
-        // 使用 reflection 设置 ID
-        $reflection = new \ReflectionClass($address);
-        $idProperty = $reflection->getProperty('id');
-        $idProperty->setAccessible(true);
-        $idProperty->setValue($address, '123');
-
-        $address->method('getName')->willReturn('默认地址');
-        $address->method('getContactName')->willReturn('张三');
-        $address->method('getContactPhone')->willReturn('13800138000');
-        $address->method('getFullAddress')->willReturn('完整地址');
-        $address->method('getProvince')->willReturn('广东省');
-        $address->method('getCity')->willReturn('深圳市');
-        $address->method('getDistrict')->willReturn('南山区');
-        $address->method('getAddress')->willReturn('街道地址');
-        $address->method('getZipCode')->willReturn('518000');
-        $address->method('getBusinessHours')->willReturn('9:00-18:00');
-        $address->method('getSpecialInstructions')->willReturn('特殊说明');
-        $address->method('getCompanyName')->willReturn('公司名称');
-
-        $this->repository->expects($this->once())
-            ->method('findDefaultAddress')
-            ->willReturn($address)
-        ;
-
         $result = $this->service->getDefaultAddressForApi();
 
         $this->assertIsArray($result);
-        $this->assertSame('123', $result['id']);
+        $this->assertSame($this->defaultAddress->getId(), $result['id']);
         $this->assertSame('默认地址', $result['name']);
     }
 
     public function testCreateReturnAddressAsDefault(): void
     {
-        $this->repository->expects($this->once())
-            ->method('setDefaultAddress')
-            ->with(static::isInstanceOf(ReturnAddress::class))
-        ;
-
-        $this->repository->expects($this->never())
-            ->method('save')
-        ;
-
         $result = $this->service->createReturnAddress(
-            '测试地址',
-            '张三',
-            '13800138000',
+            '新默认地址',
+            '李四',
+            '13900139000',
             '广东省',
-            '深圳市',
-            '测试街道123号',
-            '南山区',
-            '518000',
-            '9:00-18:00',
-            '特殊说明',
-            '测试公司',
+            '广州市',
+            '天河路100号',
+            '天河区',
+            '510000',
+            '8:00-17:00',
+            '请提前联系',
+            '新公司',
             true, // isDefault
             true,
-            1
+            10
         );
 
         $this->assertInstanceOf(ReturnAddress::class, $result);
+        $this->assertTrue($result->isDefault());
+        $this->assertNotNull($result->getId());
+
+        // 清除EntityManager缓存以获取最新数据
+        self::getEntityManager()->clear();
+
+        // 验证旧的默认地址不再是默认
+        $oldDefault = $this->repository->find($this->defaultAddress->getId());
+        $this->assertFalse($oldDefault->isDefault());
     }
 
     public function testCreateReturnAddressAsNonDefault(): void
     {
-        $this->repository->expects($this->never())
-            ->method('setDefaultAddress')
-        ;
-
-        $this->repository->expects($this->once())
-            ->method('save')
-            ->with(static::isInstanceOf(ReturnAddress::class), true)
-        ;
-
         $result = $this->service->createReturnAddress(
-            '测试地址',
-            '张三',
-            '13800138000',
-            '广东省',
-            '深圳市',
-            '测试街道123号',
-            '南山区',
-            '518000',
+            '新普通地址',
+            '王五',
+            '13700137000',
+            '北京市',
+            '北京市',
+            '朝阳路200号',
+            '朝阳区',
+            '100000',
             '9:00-18:00',
-            '特殊说明',
-            '测试公司',
+            '工作日配送',
+            '北京公司',
             false, // isDefault
             true,
-            1
+            20
         );
 
         $this->assertInstanceOf(ReturnAddress::class, $result);
+        $this->assertFalse($result->isDefault());
+        $this->assertNotNull($result->getId());
+
+        // 验证原默认地址仍然是默认
+        $oldDefault = $this->repository->find($this->defaultAddress->getId());
+        $this->assertTrue($oldDefault->isDefault());
     }
 
     public function testFindByName(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
+        $result = $this->service->findByName('默认地址');
 
-        $this->repository->expects($this->once())
-            ->method('findByName')
-            ->with('测试地址')
-            ->willReturn($address)
-        ;
-
-        $result = $this->service->findByName('测试地址');
-
-        $this->assertSame($address, $result);
+        $this->assertSame($this->defaultAddress->getId(), $result->getId());
     }
 
     public function testHasDefaultAddressReturnsTrue(): void
     {
-        $address = $this->createMock(ReturnAddress::class);
-
-        $this->repository->expects($this->once())
-            ->method('findDefaultAddress')
-            ->willReturn($address)
-        ;
-
         $result = $this->service->hasDefaultAddress();
 
         $this->assertTrue($result);
@@ -440,10 +336,8 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testHasDefaultAddressReturnsFalse(): void
     {
-        $this->repository->expects($this->once())
-            ->method('findDefaultAddress')
-            ->willReturn(null)
-        ;
+        // 清空所有地址
+        $this->clearTable();
 
         $result = $this->service->hasDefaultAddress();
 
@@ -452,13 +346,9 @@ class ReturnAddressServiceTest extends TestCase
 
     public function testCountActiveAddresses(): void
     {
-        $this->repository->expects($this->once())
-            ->method('countActiveAddresses')
-            ->willReturn(3)
-        ;
-
         $result = $this->service->countActiveAddresses();
 
-        $this->assertSame(3, $result);
+        // setUp 中创建了2个活跃地址
+        $this->assertSame(2, $result);
     }
 }

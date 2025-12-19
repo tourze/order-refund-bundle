@@ -60,7 +60,7 @@ packages/order-refund-bundle/
     "type": "symfony-bundle",
     "require": {
         "php": "^8.2",
-        "symfony/framework-bundle": "^7.3",
+        "symfony/framework-bundle": "^7.4",
         "doctrine/orm": "^3.0",
         "doctrine/doctrine-bundle": "^2.13"
     }

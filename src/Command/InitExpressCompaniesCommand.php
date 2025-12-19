@@ -17,7 +17,7 @@ use Tourze\OrderRefundBundle\Repository\ExpressCompanyRepository;
     name: 'order-refund:init-express-companies',
     description: '初始化快递公司基础数据'
 )]
-class InitExpressCompaniesCommand extends Command
+final class InitExpressCompaniesCommand extends Command
 {
     /**
      * @var array<int, array{

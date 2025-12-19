@@ -6,66 +6,70 @@ namespace Tourze\OrderRefundBundle\Tests\Procedure\Return;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
-use PHPUnit\Framework\MockObject\MockObject;
-use Tourze\JsonRPC\Core\Tests\AbstractProcedureTestCase;
 use Tourze\OrderRefundBundle\Entity\ExpressCompany;
+use Tourze\OrderRefundBundle\Param\Return\GetExpressCompaniesProcedureParam;
 use Tourze\OrderRefundBundle\Procedure\Return\GetExpressCompaniesProcedure;
-use Tourze\OrderRefundBundle\Repository\ExpressCompanyRepository;
+use Tourze\PHPUnitJsonRPC\AbstractProcedureTestCase;
 
 /**
  * @internal
  */
 #[CoversClass(GetExpressCompaniesProcedure::class)]
 #[RunTestsInSeparateProcesses]
-class GetExpressCompaniesProcedureTest extends AbstractProcedureTestCase
+final class GetExpressCompaniesProcedureTest extends AbstractProcedureTestCase
 {
     private GetExpressCompaniesProcedure $procedure;
 
-    private ExpressCompanyRepository&MockObject $expressCompanyRepository;
-
     protected function onSetUp(): void
     {
-        $this->expressCompanyRepository = $this->createMock(ExpressCompanyRepository::class);
-        self::getContainer()->set(ExpressCompanyRepository::class, $this->expressCompanyRepository);
+        // 清理现有的快递公司数据
+        $em = self::getEntityManager();
+        $em->createQuery('DELETE FROM ' . ExpressCompany::class)->execute();
+        $em->flush();
+        $em->clear();
+
         $this->procedure = self::getService(GetExpressCompaniesProcedure::class);
+    }
+
+    private function createExpressCompany(string $code, string $name, ?string $trackingUrl = null, bool $isActive = true): ExpressCompany
+    {
+        $company = new ExpressCompany();
+        $company->setCode($code);
+        $company->setName($name);
+        $company->setTrackingUrlTemplate($trackingUrl);
+        $company->setIsActive($isActive);
+
+        self::getEntityManager()->persist($company);
+
+        return $company;
     }
 
     public function testExecuteReturnsEmptyArrayWhenNoCompanies(): void
     {
-        $this->expressCompanyRepository
-            ->method('findActiveCompanies')
-            ->willReturn([])
-        ;
+        self::getEntityManager()->flush();
 
-        $result = $this->procedure->execute();
+        $result = $this->procedure->execute(new GetExpressCompaniesProcedureParam());
 
-        self::assertIsArray($result);
-        self::assertArrayHasKey('companies', $result);
-        self::assertArrayHasKey('total', $result);
-        self::assertSame([], $result['companies']);
-        self::assertSame(0, $result['total']);
+        self::assertIsArray($result->data);
+        self::assertArrayHasKey('companies', $result->data);
+        self::assertArrayHasKey('total', $result->data);
+        self::assertSame([], $result->data['companies']);
+        self::assertSame(0, $result->data['total']);
     }
 
     public function testExecuteReturnsSingleCompany(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('getCode')->willReturn('SF');
-        $company->method('getName')->willReturn('顺丰速运');
-        $company->method('getTrackingUrlTemplate')->willReturn('https://www.sf-express.com/track/{code}');
+        $this->createExpressCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/{code}');
+        self::getEntityManager()->flush();
 
-        $this->expressCompanyRepository
-            ->method('findActiveCompanies')
-            ->willReturn([$company])
-        ;
+        $result = $this->procedure->execute(new GetExpressCompaniesProcedureParam());
 
-        $result = $this->procedure->execute();
+        self::assertIsArray($result->data);
+        self::assertArrayHasKey('companies', $result->data);
+        self::assertArrayHasKey('total', $result->data);
+        self::assertSame(1, $result->data['total']);
 
-        self::assertIsArray($result);
-        self::assertArrayHasKey('companies', $result);
-        self::assertArrayHasKey('total', $result);
-        self::assertSame(1, $result['total']);
-
-        $companies = $result['companies'];
+        $companies = $result->data['companies'];
         self::assertIsArray($companies);
         self::assertCount(1, $companies);
 
@@ -81,141 +85,108 @@ class GetExpressCompaniesProcedureTest extends AbstractProcedureTestCase
 
     public function testExecuteReturnsMultipleCompanies(): void
     {
-        $company1 = $this->createMock(ExpressCompany::class);
-        $company1->method('getCode')->willReturn('SF');
-        $company1->method('getName')->willReturn('顺丰速运');
-        $company1->method('getTrackingUrlTemplate')->willReturn('https://www.sf-express.com/track/{code}');
+        $this->createExpressCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/{code}');
+        $this->createExpressCompany('YTO', '圆通速递', 'https://www.yto.net.cn/query/{code}');
+        $this->createExpressCompany('STO', '申通快递', null);
+        self::getEntityManager()->flush();
 
-        $company2 = $this->createMock(ExpressCompany::class);
-        $company2->method('getCode')->willReturn('YTO');
-        $company2->method('getName')->willReturn('圆通速递');
-        $company2->method('getTrackingUrlTemplate')->willReturn('https://www.yto.net.cn/query/{code}');
+        $result = $this->procedure->execute(new GetExpressCompaniesProcedureParam());
 
-        $company3 = $this->createMock(ExpressCompany::class);
-        $company3->method('getCode')->willReturn('STO');
-        $company3->method('getName')->willReturn('申通快递');
-        $company3->method('getTrackingUrlTemplate')->willReturn(null);
+        self::assertIsArray($result->data);
+        self::assertArrayHasKey('companies', $result->data);
+        self::assertArrayHasKey('total', $result->data);
+        self::assertSame(3, $result->data['total']);
 
-        $companies = [$company1, $company2, $company3];
-
-        $this->expressCompanyRepository
-            ->method('findActiveCompanies')
-            ->willReturn($companies)
-        ;
-
-        $result = $this->procedure->execute();
-
-        self::assertIsArray($result);
-        self::assertArrayHasKey('companies', $result);
-        self::assertArrayHasKey('total', $result);
-        self::assertSame(3, $result['total']);
-
-        $companies = $result['companies'];
+        $companies = $result->data['companies'];
         self::assertIsArray($companies);
         self::assertCount(3, $companies);
 
-        // 验证第一个公司
-        $companyData1 = $companies[0];
-        self::assertIsArray($companyData1);
-        self::assertSame('SF', $companyData1['code']);
-        self::assertSame('顺丰速运', $companyData1['name']);
-        self::assertSame('https://www.sf-express.com/track/{code}', $companyData1['trackingUrl']);
+        // 将结果按 code 索引
+        $companiesByCode = [];
+        foreach ($companies as $company) {
+            $companiesByCode[$company['code']] = $company;
+        }
 
-        // 验证第二个公司
-        $companyData2 = $companies[1];
-        self::assertIsArray($companyData2);
-        self::assertSame('YTO', $companyData2['code']);
-        self::assertSame('圆通速递', $companyData2['name']);
-        self::assertSame('https://www.yto.net.cn/query/{code}', $companyData2['trackingUrl']);
+        // 验证顺丰
+        self::assertArrayHasKey('SF', $companiesByCode);
+        self::assertSame('顺丰速运', $companiesByCode['SF']['name']);
+        self::assertSame('https://www.sf-express.com/track/{code}', $companiesByCode['SF']['trackingUrl']);
 
-        // 验证第三个公司（trackingUrl为null）
-        $companyData3 = $companies[2];
-        self::assertIsArray($companyData3);
-        self::assertSame('STO', $companyData3['code']);
-        self::assertSame('申通快递', $companyData3['name']);
-        self::assertNull($companyData3['trackingUrl']);
+        // 验证圆通
+        self::assertArrayHasKey('YTO', $companiesByCode);
+        self::assertSame('圆通速递', $companiesByCode['YTO']['name']);
+        self::assertSame('https://www.yto.net.cn/query/{code}', $companiesByCode['YTO']['trackingUrl']);
+
+        // 验证申通（trackingUrl为null）
+        self::assertArrayHasKey('STO', $companiesByCode);
+        self::assertSame('申通快递', $companiesByCode['STO']['name']);
+        self::assertNull($companiesByCode['STO']['trackingUrl']);
     }
 
-    public function testExecuteHandlesNullValues(): void
+    public function testExecuteHandlesNullTrackingUrl(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('getCode')->willReturn(null);
-        $company->method('getName')->willReturn(null);
-        $company->method('getTrackingUrlTemplate')->willReturn(null);
+        $this->createExpressCompany('ZTO', '中通快递', null);
+        self::getEntityManager()->flush();
 
-        $this->expressCompanyRepository
-            ->method('findActiveCompanies')
-            ->willReturn([$company])
-        ;
+        $result = $this->procedure->execute(new GetExpressCompaniesProcedureParam());
 
-        $result = $this->procedure->execute();
+        self::assertIsArray($result->data);
+        self::assertSame(1, $result->data['total']);
 
-        self::assertIsArray($result);
-        self::assertSame(1, $result['total']);
-
-        $companies = $result['companies'];
+        $companies = $result->data['companies'];
         self::assertIsArray($companies);
         self::assertCount(1, $companies);
 
         $companyData = $companies[0];
         self::assertIsArray($companyData);
-        self::assertNull($companyData['code']);
-        self::assertNull($companyData['name']);
+        self::assertSame('ZTO', $companyData['code']);
+        self::assertSame('中通快递', $companyData['name']);
         self::assertNull($companyData['trackingUrl']);
     }
 
-    public function testExecuteCallsRepositoryCorrectly(): void
+    public function testExecuteOnlyReturnsActiveCompanies(): void
     {
-        $this->expressCompanyRepository
-            ->expects(self::once())
-            ->method('findActiveCompanies')
-            ->willReturn([])
-        ;
+        $this->createExpressCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/{code}', true);
+        $this->createExpressCompany('YTO', '圆通速递', 'https://www.yto.net.cn/query/{code}', false);
+        self::getEntityManager()->flush();
 
-        $this->procedure->execute();
+        $result = $this->procedure->execute(new GetExpressCompaniesProcedureParam());
+
+        self::assertIsArray($result->data);
+        self::assertSame(1, $result->data['total']);
+
+        $companies = $result->data['companies'];
+        self::assertIsArray($companies);
+        self::assertCount(1, $companies);
+        self::assertSame('SF', $companies[0]['code']);
     }
 
     public function testExecuteReturnsCorrectArrayStructure(): void
     {
-        $this->expressCompanyRepository
-            ->method('findActiveCompanies')
-            ->willReturn([])
-        ;
+        self::getEntityManager()->flush();
 
-        $result = $this->procedure->execute();
+        $result = $this->procedure->execute(new GetExpressCompaniesProcedureParam());
 
-        self::assertIsArray($result);
-        self::assertArrayHasKey('companies', $result);
-        self::assertArrayHasKey('total', $result);
-        self::assertCount(2, $result); // 只有这两个键
+        self::assertIsArray($result->data);
+        self::assertArrayHasKey('companies', $result->data);
+        self::assertArrayHasKey('total', $result->data);
+        self::assertCount(2, $result->data); // 只有这两个键
     }
 
     public function testExecuteReturnsConsistentTotalCount(): void
     {
-        $companies = [
-            $this->createMock(ExpressCompany::class),
-            $this->createMock(ExpressCompany::class),
-            $this->createMock(ExpressCompany::class),
-        ];
+        $this->createExpressCompany('CODE0', '名称0', 'https://example.com/0');
+        $this->createExpressCompany('CODE1', '名称1', 'https://example.com/1');
+        $this->createExpressCompany('CODE2', '名称2', 'https://example.com/2');
+        self::getEntityManager()->flush();
 
-        foreach ($companies as $i => $company) {
-            $company->method('getCode')->willReturn("CODE{$i}");
-            $company->method('getName')->willReturn("名称{$i}");
-            $company->method('getTrackingUrlTemplate')->willReturn("https://example.com/{$i}");
-        }
+        $result = $this->procedure->execute(new GetExpressCompaniesProcedureParam());
 
-        $this->expressCompanyRepository
-            ->method('findActiveCompanies')
-            ->willReturn($companies)
-        ;
+        self::assertIsArray($result->data);
+        self::assertSame(3, $result->data['total']);
 
-        $result = $this->procedure->execute();
-
-        self::assertIsArray($result);
-        self::assertSame(count($companies), $result['total']);
-
-        $resultCompanies = $result['companies'];
+        $resultCompanies = $result->data['companies'];
         self::assertIsArray($resultCompanies);
-        self::assertSame(count($companies), count($resultCompanies));
+        self::assertCount(3, $resultCompanies);
     }
 }

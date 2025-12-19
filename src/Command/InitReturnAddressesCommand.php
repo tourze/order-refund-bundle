@@ -16,7 +16,7 @@ use Tourze\OrderRefundBundle\Service\ReturnAddressService;
     name: 'order-refund:init-return-addresses',
     description: '初始化寄回地址基础数据'
 )]
-class InitReturnAddressesCommand extends Command
+final class InitReturnAddressesCommand extends Command
 {
     /**
      * @var array<int, array{

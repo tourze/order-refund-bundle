@@ -9,7 +9,7 @@ use Tourze\OrderRefundBundle\Entity\Aftersales;
 /**
  * 售后创建事件
  */
-class AftersalesCreatedEvent extends AbstractAftersalesEvent
+final class AftersalesCreatedEvent extends AbstractAftersalesEvent
 {
     public const NAME = 'aftersales.created';
 

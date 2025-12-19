@@ -6,39 +6,62 @@ namespace Tourze\OrderRefundBundle\Tests\Service;
 
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Tourze\OrderRefundBundle\Entity\ExpressCompany;
 use Tourze\OrderRefundBundle\Entity\ReturnOrder;
 use Tourze\OrderRefundBundle\Repository\ExpressCompanyRepository;
 use Tourze\OrderRefundBundle\Service\ExpressTrackingService;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractIntegrationTestCase;
 
 /**
  * @internal
  */
 #[CoversClass(ExpressTrackingService::class)]
-class ExpressTrackingServiceTest extends TestCase
+#[RunTestsInSeparateProcesses]
+final class ExpressTrackingServiceTest extends AbstractIntegrationTestCase
 {
     private ExpressTrackingService $service;
 
-    private ExpressCompanyRepository&MockObject $expressCompanyRepository;
+    private ExpressCompanyRepository $expressCompanyRepository;
 
-    protected function setUp(): void
+    protected function onSetUp(): void
     {
-        $this->expressCompanyRepository = $this->createMock(ExpressCompanyRepository::class);
-        $this->service = new ExpressTrackingService($this->expressCompanyRepository);
+        $this->expressCompanyRepository = self::getService(ExpressCompanyRepository::class);
+        $this->service = self::getService(ExpressTrackingService::class);
+
+        // 清空测试数据
+        $this->clearTable();
+    }
+
+    private function clearTable(): void
+    {
+        $entityManager = self::getEntityManager();
+        $connection = $entityManager->getConnection();
+        $connection->executeStatement('DELETE FROM order_express_companies');
+    }
+
+    private function createTestCompany(
+        string $code,
+        string $name,
+        ?string $trackingUrlTemplate = null,
+        bool $isActive = true,
+        int $sortOrder = 0,
+    ): ExpressCompany {
+        $company = new ExpressCompany();
+        $company->setCode($code);
+        $company->setName($name);
+        $company->setTrackingUrlTemplate($trackingUrlTemplate);
+        $company->setIsActive($isActive);
+        $company->setSortOrder($sortOrder);
+
+        $this->expressCompanyRepository->save($company, true);
+
+        return $company;
     }
 
     public function testGenerateTrackingUrlWithValidCompanyCode(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('getTrackingUrlTemplate')->willReturn('https://www.sf-express.com/track/%s');
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('SF')
-            ->willReturn($company)
-        ;
+        $this->createTestCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/%s');
 
         $result = $this->service->generateTrackingUrl('SF', 'SF1234567890');
 
@@ -47,20 +70,8 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlWithValidCompanyName(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('getTrackingUrlTemplate')->willReturn('https://www.yto.net.cn/query/%s');
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('圆通速递')
-            ->willReturn(null)
-        ;
-
-        $this->expressCompanyRepository
-            ->method('findOneBy')
-            ->with(['name' => '圆通速递', 'isActive' => true])
-            ->willReturn($company)
-        ;
+        // 创建一个公司，不使用名称作为代码，以便测试按名称查找的逻辑
+        $this->createTestCompany('YTO', '圆通速递', 'https://www.yto.net.cn/query/%s');
 
         $result = $this->service->generateTrackingUrl('圆通速递', 'YTO1234567890');
 
@@ -91,17 +102,7 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlWithNonExistentCompany(): void
     {
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('NONEXISTENT')
-            ->willReturn(null)
-        ;
-
-        $this->expressCompanyRepository
-            ->method('findOneBy')
-            ->with(['name' => 'NONEXISTENT', 'isActive' => true])
-            ->willReturn(null)
-        ;
+        // 不创建任何公司，直接测试
 
         $result = $this->service->generateTrackingUrl('NONEXISTENT', 'TEST1234567890');
 
@@ -110,14 +111,7 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlWithCompanyHavingNullTemplate(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('getTrackingUrlTemplate')->willReturn(null);
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('SF')
-            ->willReturn($company)
-        ;
+        $this->createTestCompany('SF', '顺丰速运', null);
 
         $result = $this->service->generateTrackingUrl('SF', 'SF1234567890');
 
@@ -126,14 +120,7 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlWithCompanyHavingEmptyTemplate(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('getTrackingUrlTemplate')->willReturn('');
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('SF')
-            ->willReturn($company)
-        ;
+        $this->createTestCompany('SF', '顺丰速运', '');
 
         $result = $this->service->generateTrackingUrl('SF', 'SF1234567890');
 
@@ -142,18 +129,11 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlForReturnWithValidData(): void
     {
-        $returnOrder = $this->createMock(ReturnOrder::class);
-        $returnOrder->method('getExpressCompany')->willReturn('SF');
-        $returnOrder->method('getTrackingNo')->willReturn('SF1234567890');
+        $this->createTestCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/%s');
 
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('getTrackingUrlTemplate')->willReturn('https://www.sf-express.com/track/%s');
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('SF')
-            ->willReturn($company)
-        ;
+        $returnOrder = new ReturnOrder();
+        $returnOrder->setExpressCompany('SF');
+        $returnOrder->setTrackingNo('SF1234567890');
 
         $result = $this->service->generateTrackingUrlForReturn($returnOrder);
 
@@ -162,9 +142,9 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlForReturnWithNullExpressCompany(): void
     {
-        $returnOrder = $this->createMock(ReturnOrder::class);
-        $returnOrder->method('getExpressCompany')->willReturn(null);
-        $returnOrder->method('getTrackingNo')->willReturn('SF1234567890');
+        $returnOrder = new ReturnOrder();
+        $returnOrder->setExpressCompany(null);
+        $returnOrder->setTrackingNo('SF1234567890');
 
         $result = $this->service->generateTrackingUrlForReturn($returnOrder);
 
@@ -173,9 +153,9 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlForReturnWithNullTrackingNo(): void
     {
-        $returnOrder = $this->createMock(ReturnOrder::class);
-        $returnOrder->method('getExpressCompany')->willReturn('SF');
-        $returnOrder->method('getTrackingNo')->willReturn(null);
+        $returnOrder = new ReturnOrder();
+        $returnOrder->setExpressCompany('SF');
+        $returnOrder->setTrackingNo(null);
 
         $result = $this->service->generateTrackingUrlForReturn($returnOrder);
 
@@ -184,9 +164,9 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlForReturnWithBothNull(): void
     {
-        $returnOrder = $this->createMock(ReturnOrder::class);
-        $returnOrder->method('getExpressCompany')->willReturn(null);
-        $returnOrder->method('getTrackingNo')->willReturn(null);
+        $returnOrder = new ReturnOrder();
+        $returnOrder->setExpressCompany(null);
+        $returnOrder->setTrackingNo(null);
 
         $result = $this->service->generateTrackingUrlForReturn($returnOrder);
 
@@ -195,14 +175,7 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testValidateExpressCompanyWithActiveCompany(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('isActive')->willReturn(true);
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('SF')
-            ->willReturn($company)
-        ;
+        $this->createTestCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/%s', true);
 
         $result = $this->service->validateExpressCompany('SF');
 
@@ -211,14 +184,7 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testValidateExpressCompanyWithInactiveCompany(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('isActive')->willReturn(false);
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('SF')
-            ->willReturn($company)
-        ;
+        $this->createTestCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/%s', false);
 
         $result = $this->service->validateExpressCompany('SF');
 
@@ -227,17 +193,7 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testValidateExpressCompanyWithNonExistentCompany(): void
     {
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('NONEXISTENT')
-            ->willReturn(null)
-        ;
-
-        $this->expressCompanyRepository
-            ->method('findOneBy')
-            ->with(['name' => 'NONEXISTENT', 'isActive' => true])
-            ->willReturn(null)
-        ;
+        // 不创建任何公司，直接测试
 
         $result = $this->service->validateExpressCompany('NONEXISTENT');
 
@@ -246,20 +202,8 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testValidateExpressCompanyByName(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('isActive')->willReturn(true);
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('顺丰速运')
-            ->willReturn(null)
-        ;
-
-        $this->expressCompanyRepository
-            ->method('findOneBy')
-            ->with(['name' => '顺丰速运', 'isActive' => true])
-            ->willReturn($company)
-        ;
+        // 创建一个代码和名称不同的快递公司，以确保按名称查找的逻辑被测试
+        $this->createTestCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/%s', true);
 
         $result = $this->service->validateExpressCompany('顺丰速运');
 
@@ -268,42 +212,24 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGetAvailableCompanies(): void
     {
-        $company1 = $this->createMock(ExpressCompany::class);
-        $company2 = $this->createMock(ExpressCompany::class);
-        $companies = [$company1, $company2];
-
-        $this->expressCompanyRepository
-            ->expects(self::once())
-            ->method('findActiveCompanies')
-            ->willReturn($companies)
-        ;
+        $this->createTestCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/%s', true, 1);
+        $this->createTestCompany('YTO', '圆通速递', 'https://www.yto.net.cn/query/%s', true, 2);
+        $this->createTestCompany('INACTIVE', '已停用快递', null, false, 0);
 
         $result = $this->service->getAvailableCompanies();
 
-        self::assertSame($companies, $result);
+        // 只应返回启用的公司，按 sortOrder 排序
         self::assertCount(2, $result);
+        self::assertSame('SF', $result[0]->getCode());
+        self::assertSame('YTO', $result[1]->getCode());
     }
 
     public function testFindCompanyByCodePriority(): void
     {
-        $companyByCode = $this->createMock(ExpressCompany::class);
-        $companyByCode->method('getTrackingUrlTemplate')->willReturn('https://code.example.com/%s');
+        // 创建一个代码为 SF 的公司
+        $this->createTestCompany('SF', '顺丰速运', 'https://code.example.com/%s');
 
-        $companyByName = $this->createMock(ExpressCompany::class);
-        $companyByName->method('getTrackingUrlTemplate')->willReturn('https://name.example.com/%s');
-
-        // 设置按代码查找返回结果，按名称查找不应该被调用
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('SF')
-            ->willReturn($companyByCode)
-        ;
-
-        $this->expressCompanyRepository
-            ->expects(self::never())
-            ->method('findOneBy')
-        ;
-
+        // 测试：当提供代码 SF 时，应该按代码查找并优先返回
         $result = $this->service->generateTrackingUrl('SF', 'TEST123');
 
         self::assertSame('https://code.example.com/TEST123', $result);
@@ -311,15 +237,8 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testGenerateTrackingUrlHandlesSprintfCorrectly(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
         // 测试单个占位符的情况
-        $company->method('getTrackingUrlTemplate')->willReturn('https://example.com/track?code=%s');
-
-        $this->expressCompanyRepository
-            ->method('findByCode')
-            ->with('TEST')
-            ->willReturn($company)
-        ;
+        $this->createTestCompany('TEST', '测试快递', 'https://example.com/track?code=%s');
 
         $result = $this->service->generateTrackingUrl('TEST', 'ABC123');
 
@@ -328,25 +247,10 @@ class ExpressTrackingServiceTest extends TestCase
 
     public function testValidateExpressCompanySearchesByBothCodeAndName(): void
     {
-        $company = $this->createMock(ExpressCompany::class);
-        $company->method('isActive')->willReturn(true);
+        // 创建一个代码和名称不同的公司，用于测试代码查找失败后按名称查找的逻辑
+        $this->createTestCompany('SF', '顺丰速运', 'https://www.sf-express.com/track/%s', true);
 
-        // 首先按代码查找失败
-        $this->expressCompanyRepository
-            ->expects(self::once())
-            ->method('findByCode')
-            ->with('顺丰速运')
-            ->willReturn(null)
-        ;
-
-        // 然后按名称查找成功
-        $this->expressCompanyRepository
-            ->expects(self::once())
-            ->method('findOneBy')
-            ->with(['name' => '顺丰速运', 'isActive' => true])
-            ->willReturn($company)
-        ;
-
+        // 用名称查找（而非代码），应该能找到
         $result = $this->service->validateExpressCompany('顺丰速运');
 
         self::assertTrue($result);

@@ -14,9 +14,9 @@ use Tourze\OrderRefundBundle\Enum\AftersalesLogAction;
  */
 trait AftersalesLogExtensions
 {
+    /** @var string|null 描述 */
     #[ORM\Column(type: Types::STRING, name: 'description', length: 500, nullable: true, options: ['comment' => '描述'])]
     #[Assert\Length(max: 500)]
-    /** @phpstan-ignore-line */
     private ?string $description = null;
 
     /** @var string|null 操作人 */

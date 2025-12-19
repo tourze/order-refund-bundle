@@ -7,29 +7,29 @@ namespace Tourze\OrderRefundBundle\Tests\Service;
 use InvalidArgumentException;
 use OrderCoreBundle\Entity\Contract;
 use OrderCoreBundle\Entity\OrderProduct;
-use OrderCoreBundle\Repository\OrderProductRepository;
+use OrderCoreBundle\Enum\OrderState;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\OrderRefundBundle\Enum\AftersalesType;
 use Tourze\OrderRefundBundle\Enum\RefundReason;
 use Tourze\OrderRefundBundle\Service\AftersalesValidator;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractIntegrationTestCase;
+use Tourze\ProductCoreBundle\Entity\Sku;
+use Tourze\ProductCoreBundle\Entity\Spu;
 
 /**
  * @internal
  */
 #[CoversClass(AftersalesValidator::class)]
-final class AftersalesValidatorTest extends TestCase
+#[RunTestsInSeparateProcesses]
+final class AftersalesValidatorTest extends AbstractIntegrationTestCase
 {
-    private OrderProductRepository&MockObject $orderProductRepository;
-
     private AftersalesValidator $validator;
 
-    protected function setUp(): void
+    protected function onSetUp(): void
     {
-        $this->orderProductRepository = $this->createMock(OrderProductRepository::class);
-        $this->validator = new AftersalesValidator($this->orderProductRepository);
+        $this->validator = self::getService(AftersalesValidator::class);
     }
 
     public function testValidateAftersalesTypeSuccess(): void
@@ -87,18 +87,20 @@ final class AftersalesValidatorTest extends TestCase
 
     public function testValidateContractSuccess(): void
     {
-        $user = $this->createMock(UserInterface::class);
+        $user = $this->createNormalUser();
 
-        $contract = $this->createMock(Contract::class);
-        $contract->expects($this->once())
-            ->method('getUser')
-            ->willReturn($user);
+        $contract = new Contract();
+        $contract->setSn('TEST-CONTRACT-123');
+        $contract->setState(OrderState::INIT);
+        $contract->setUser($user);
+        $contract = $this->persistAndFlush($contract);
 
         $contractId = 'CONTRACT123';
         $items = [['orderProductId' => '1', 'quantity' => 2]];
 
         // Should not throw exception
         $this->validator->validateContract($contractId, $items, $contract, $user);
+        $this->assertTrue(true);
     }
 
     public function testValidateContractEmptyId(): void
@@ -106,8 +108,12 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('订单ID不能为空');
 
-        $contract = $this->createMock(Contract::class);
-        $user = $this->createMock(UserInterface::class);
+        $user = $this->createNormalUser();
+        $contract = new Contract();
+        $contract->setSn('TEST-CONTRACT-124');
+        $contract->setState(OrderState::INIT);
+        $contract->setUser($user);
+        $contract = $this->persistAndFlush($contract);
 
         $this->validator->validateContract('', [['orderProductId' => '1', 'quantity' => 2]], $contract, $user);
     }
@@ -117,8 +123,12 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('售后商品列表不能为空');
 
-        $contract = $this->createMock(Contract::class);
-        $user = $this->createMock(UserInterface::class);
+        $user = $this->createNormalUser();
+        $contract = new Contract();
+        $contract->setSn('TEST-CONTRACT-125');
+        $contract->setState(OrderState::INIT);
+        $contract->setUser($user);
+        $contract = $this->persistAndFlush($contract);
 
         $this->validator->validateContract('CONTRACT123', [], $contract, $user);
     }
@@ -128,33 +138,29 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('无权操作此订单');
 
-        $contractUser = $this->createMock(UserInterface::class);
-        $requestUser = $this->createMock(UserInterface::class);
+        $contractUser = $this->createNormalUser('contract-user');
+        $requestUser = $this->createNormalUser('request-user');
 
-        $contract = $this->createMock(Contract::class);
-        $contract->method('getUser')->willReturn($contractUser);
+        $contract = new Contract();
+        $contract->setSn('TEST-CONTRACT-126');
+        $contract->setState(OrderState::INIT);
+        $contract->setUser($contractUser);
+        $contract = $this->persistAndFlush($contract);
 
         $this->validator->validateContract('CONTRACT123', [['orderProductId' => '1', 'quantity' => 2]], $contract, $requestUser);
     }
 
     public function testValidateAftersalesItemSuccess(): void
     {
-        $contract = $this->createMock(Contract::class);
-        $orderProduct = $this->createMock(OrderProduct::class);
-        $orderProduct->method('getQuantity')->willReturn(10);
-        $orderProduct->method('getContract')->willReturn($contract);
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
+        $orderProduct = $this->createTestOrderProduct($contract, 10);
 
-        $item = ['orderProductId' => '1', 'quantity' => 5];
-
-        $this->orderProductRepository
-            ->method('find')
-            ->with('1')
-            ->willReturn($orderProduct)
-        ;
+        $item = ['orderProductId' => (string) $orderProduct->getId(), 'quantity' => 5];
 
         $result = $this->validator->validateAftersalesItem($contract, $item, 0, []);
 
-        $this->assertSame($orderProduct, $result);
+        $this->assertSame($orderProduct->getId(), $result->getId());
     }
 
     public function testValidateAftersalesItemMissingFields(): void
@@ -162,7 +168,8 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('第 1 个商品项目格式不正确，缺少必要字段');
 
-        $contract = $this->createMock(Contract::class);
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
         $item = ['orderProductId' => '1']; // Missing quantity
 
         $this->validator->validateAftersalesItem($contract, $item, 0, []);
@@ -173,14 +180,13 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('商品 1 已存在售后申请（状态：pending, processing），无法重复申请');
 
-        $contract = $this->createMock(Contract::class);
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
         $item = ['orderProductId' => '1', 'quantity' => 2];
 
-        /** @var array<string, array<string>> $activeAftersales */
         $activeAftersales = [];
         $activeAftersales['1'] = ['pending', 'processing'];
 
-        /** @phpstan-ignore argument.type */
         $this->validator->validateAftersalesItem($contract, $item, 0, $activeAftersales);
     }
 
@@ -189,7 +195,8 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('商品 1 的数量必须大于0');
 
-        $contract = $this->createMock(Contract::class);
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
         $item = ['orderProductId' => '1', 'quantity' => 0];
 
         $this->validator->validateAftersalesItem($contract, $item, 0, []);
@@ -198,37 +205,25 @@ final class AftersalesValidatorTest extends TestCase
     public function testValidateAftersalesItemProductNotFound(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('商品不属于此订单: 1');
+        $this->expectExceptionMessage('商品不属于此订单: 999999');
 
-        $contract = $this->createMock(Contract::class);
-        $item = ['orderProductId' => '1', 'quantity' => 2];
-
-        $this->orderProductRepository
-            ->method('find')
-            ->with('1')
-            ->willReturn(null)
-        ;
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
+        $item = ['orderProductId' => '999999', 'quantity' => 2];
 
         $this->validator->validateAftersalesItem($contract, $item, 0, []);
     }
 
     public function testValidateAftersalesItemQuantityExceeded(): void
     {
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
+        $orderProduct = $this->createTestOrderProduct($contract, 5);
+
+        $item = ['orderProductId' => (string) $orderProduct->getId(), 'quantity' => 10];
+
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('商品 1 申请数量(10)超过订单数量(5)');
-
-        $contract = $this->createMock(Contract::class);
-        $orderProduct = $this->createMock(OrderProduct::class);
-        $orderProduct->method('getQuantity')->willReturn(5);
-        $orderProduct->method('getContract')->willReturn($contract);
-
-        $item = ['orderProductId' => '1', 'quantity' => 10];
-
-        $this->orderProductRepository
-            ->method('find')
-            ->with('1')
-            ->willReturn($orderProduct)
-        ;
+        $this->expectExceptionMessage('商品 ' . $orderProduct->getId() . ' 申请数量(10)超过订单数量(5)');
 
         $this->validator->validateAftersalesItem($contract, $item, 0, []);
     }
@@ -238,40 +233,59 @@ final class AftersalesValidatorTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('商品数量格式错误');
 
-        $contract = $this->createMock(Contract::class);
-        $orderProduct = $this->createMock(OrderProduct::class);
-        $orderProduct->method('getQuantity')->willReturn(5);
-        $orderProduct->method('getContract')->willReturn($contract);
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
+        $orderProduct = $this->createTestOrderProduct($contract, 5);
 
-        $item = ['orderProductId' => '1', 'quantity' => 'invalid'];
-
-        $this->orderProductRepository
-            ->method('find')
-            ->with('1')
-            ->willReturn($orderProduct)
-        ;
+        $item = ['orderProductId' => (string) $orderProduct->getId(), 'quantity' => 'invalid'];
 
         $this->validator->validateAftersalesItem($contract, $item, 0, []);
     }
 
     public function testValidateQuantityWithStringNumber(): void
     {
-        $contract = $this->createMock(Contract::class);
-        $orderProduct = $this->createMock(OrderProduct::class);
-        $orderProduct->method('getQuantity')->willReturn(10);
-        $orderProduct->method('getContract')->willReturn($contract);
-
-        $this->orderProductRepository
-            ->method('find')
-            ->with('1')
-            ->willReturn($orderProduct)
-        ;
+        $user = $this->createNormalUser();
+        $contract = $this->createTestContract($user);
+        $orderProduct = $this->createTestOrderProduct($contract, 10);
 
         // Test string number is accepted
-        $item = ['orderProductId' => '1', 'quantity' => '5'];
+        $item = ['orderProductId' => (string) $orderProduct->getId(), 'quantity' => '5'];
 
         $result = $this->validator->validateAftersalesItem($contract, $item, 0, []);
 
-        $this->assertSame($orderProduct, $result);
+        $this->assertSame($orderProduct->getId(), $result->getId());
+    }
+
+    private function createTestContract(UserInterface $user): Contract
+    {
+        $contract = new Contract();
+        $contract->setSn('TEST-CONTRACT-' . uniqid());
+        $contract->setState(OrderState::INIT);
+        $contract->setUser($user);
+
+        return $this->persistAndFlush($contract);
+    }
+
+    private function createTestOrderProduct(Contract $contract, int $quantity): OrderProduct
+    {
+        $spu = new Spu();
+        $spu->setTitle('测试商品');
+        $spu->setValid(true);
+        $spu = $this->persistAndFlush($spu);
+
+        $sku = new Sku();
+        $sku->setSpu($spu);
+        $sku->setTitle('测试SKU');
+        $sku->setValid(true);
+        $sku->setUnit('件');
+        $sku = $this->persistAndFlush($sku);
+
+        $orderProduct = new OrderProduct();
+        $orderProduct->setContract($contract);
+        $orderProduct->setSku($sku);
+        $orderProduct->setValid(true);
+        $orderProduct->setQuantity($quantity);
+
+        return $this->persistAndFlush($orderProduct);
     }
 }

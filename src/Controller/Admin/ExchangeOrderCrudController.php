@@ -14,6 +14,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Field\FieldInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ArrayField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
@@ -125,14 +126,12 @@ final class ExchangeOrderCrudController extends AbstractCrudController
             ->hideOnIndex()
         ;
 
-        yield TextField::new('originalItems', '原商品')
+        yield ArrayField::new('originalItems', '原商品')
             ->onlyOnDetail()
-            ->formatValue(fn ($value) => $this->formatJsonData($value))
         ;
 
-        yield TextField::new('exchangeItems', '换货商品')
+        yield ArrayField::new('exchangeItems', '换货商品')
             ->onlyOnDetail()
-            ->formatValue(fn ($value) => $this->formatJsonData($value))
         ;
     }
 

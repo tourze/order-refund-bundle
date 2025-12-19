@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Procedure\Aftersales;
 
+use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
-use PHPUnit\Framework\MockObject\MockObject;
-use Tourze\JsonRPC\Core\Tests\AbstractProcedureTestCase;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
 use Tourze\OrderRefundBundle\Enum\AftersalesStage;
 use Tourze\OrderRefundBundle\Enum\AftersalesState;
 use Tourze\OrderRefundBundle\Enum\AftersalesType;
 use Tourze\OrderRefundBundle\Enum\RefundReason;
+use Tourze\OrderRefundBundle\Param\Aftersales\GetAftersalesListParam;
 use Tourze\OrderRefundBundle\Procedure\Aftersales\GetAftersalesListProcedure;
-use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
+use Tourze\PHPUnitJsonRPC\AbstractProcedureTestCase;
 
 /**
  * @internal
@@ -25,62 +27,41 @@ final class GetAftersalesListProcedureTest extends AbstractProcedureTestCase
 {
     private GetAftersalesListProcedure $procedure;
 
-    private AftersalesRepository&MockObject $aftersalesRepository;
+    private EntityManagerInterface $em;
+
+    private UserInterface $testUser;
 
     protected function onSetUp(): void
     {
-        $this->aftersalesRepository = $this->createMock(AftersalesRepository::class);
-        $mockUser = $this->createNormalUser('test@example.com', 'password123');
+        $this->procedure = self::getService(GetAftersalesListProcedure::class);
+        $this->em = self::getService(EntityManagerInterface::class);
+
+        // 创建测试用户
+        $this->testUser = $this->createNormalUser('test@example.com', 'password123');
 
         // 设置认证用户
-        $this->setAuthenticatedUser($mockUser);
-
-        // 只替换AftersalesRepository服务
-        self::getContainer()->set(AftersalesRepository::class, $this->aftersalesRepository);
-
-        // 从容器获取procedure实例
-        $this->procedure = self::getService(GetAftersalesListProcedure::class);
+        $this->setAuthenticatedUser($this->testUser);
     }
 
     public function testExecuteReturnsAftersalesList(): void
     {
-        // Security mock已在setUp中设置用户
-
-        // 创建Mock售后数据，排除 final 方法
-        $mockAftersales = $this->getMockBuilder(Aftersales::class)
-            ->onlyMethods([
-                'getType', 'getReason', 'getState', 'getStage', 'getTotalRefundAmount',
-                'getDescription', 'getProofImages', 'canModify', 'canCancel', 'getAvailableActions',
-                'getAuditTime', 'getCompletedTime'
-            ])
-            ->getMock();
-
-        // 使用 reflection 设置 ID
-        $reflection = new \ReflectionClass($mockAftersales);
-        $idProperty = $reflection->getProperty('id');
-        $idProperty->setAccessible(true);
-        $idProperty->setValue($mockAftersales, '1');
-
-        $mockAftersales->method('getType')->willReturn(AftersalesType::REFUND_ONLY);
-        $mockAftersales->method('getReason')->willReturn(RefundReason::QUALITY_ISSUE);
-        $mockAftersales->method('getState')->willReturn(AftersalesState::PENDING_APPROVAL);
-        $mockAftersales->method('getStage')->willReturn(AftersalesStage::APPLY);
-        $mockAftersales->method('getTotalRefundAmount')->willReturn(100.0);
-        $mockAftersales->method('getDescription')->willReturn('Test description');
-        $mockAftersales->method('getProofImages')->willReturn([]);
-        $mockAftersales->method('canModify')->willReturn(true);
-        $mockAftersales->method('canCancel')->willReturn(true);
-        $mockAftersales->method('getAvailableActions')->willReturn(['approve', 'reject']);
-        $mockAftersales->method('getAuditTime')->willReturn(null);
-        $mockAftersales->method('getCompletedTime')->willReturn(null);
-
-        $this->aftersalesRepository->method('findBy')->willReturn([$mockAftersales]);
-        $this->aftersalesRepository->method('count')->willReturn(1);
+        // 创建真实的售后数据
+        $aftersales = $this->createAftersales(
+            user: $this->testUser,
+            type: AftersalesType::REFUND_ONLY,
+            state: AftersalesState::PENDING_APPROVAL,
+            reason: RefundReason::QUALITY_ISSUE,
+            description: 'Test description',
+            refundAmount: '100.00'
+        );
 
         // 执行测试
-        $result = $this->procedure->execute();
+        $param = new GetAftersalesListParam();
+        $resultObject = $this->procedure->execute($param);
 
         // 验证结果
+        $this->assertInstanceOf(ArrayResult::class, $resultObject);
+        $result = $resultObject->toArray();
         $this->assertIsArray($result);
         $this->assertArrayHasKey('list', $result);
         $this->assertArrayHasKey('pagination', $result);
@@ -93,77 +74,104 @@ final class GetAftersalesListProcedureTest extends AbstractProcedureTestCase
         $items = $result['list'];
         $this->assertIsArray($items);
         $this->assertCount(1, $items);
+
+        // 验证返回的售后数据
+        $item = $items[0];
+        $this->assertEquals($aftersales->getId(), $item['id']);
+        $this->assertEquals(AftersalesType::REFUND_ONLY->value, $item['type']);
+        $this->assertEquals(RefundReason::QUALITY_ISSUE->value, $item['reason']);
+        $this->assertEquals(AftersalesState::PENDING_APPROVAL->value, $item['state']);
+        $this->assertEquals('Test description', $item['description']);
     }
 
     public function testExecuteWithStateFilter(): void
     {
-        // Security mock已在setUp中设置用户
-        $this->procedure->state = AftersalesState::APPROVED;
+        // 创建不同状态的售后数据
+        $this->createAftersales(
+            user: $this->testUser,
+            type: AftersalesType::REFUND_ONLY,
+            state: AftersalesState::PENDING_APPROVAL,
+            reason: RefundReason::QUALITY_ISSUE,
+            description: 'Pending approval',
+            refundAmount: '100.00'
+        );
 
-        $this->aftersalesRepository->method('findBy')
-            ->with(self::callback(function ($criteria) {
-                if (!is_array($criteria)) {
-                    return false;
-                }
+        $this->createAftersales(
+            user: $this->testUser,
+            type: AftersalesType::REFUND_ONLY,
+            state: AftersalesState::APPROVED,
+            reason: RefundReason::QUALITY_ISSUE,
+            description: 'Approved',
+            refundAmount: '200.00'
+        );
 
-                return AftersalesState::APPROVED === $criteria['state'];
-            }))
-            ->willReturn([])
-        ;
-        $this->aftersalesRepository->method('count')->willReturn(0);
+        // 只查询已批准的售后
+        $param = new GetAftersalesListParam(state: AftersalesState::APPROVED);
+        $resultObject = $this->procedure->execute($param);
 
-        $result = $this->procedure->execute();
-
+        $this->assertInstanceOf(ArrayResult::class, $resultObject);
+        $result = $resultObject->toArray();
         $this->assertIsArray($result);
         $items = $result['list'];
         $this->assertIsArray($items);
-        $this->assertEmpty($items);
+        $this->assertCount(1, $items);
+        $this->assertEquals(AftersalesState::APPROVED->value, $items[0]['state']);
     }
 
     public function testExecuteWithTypeFilter(): void
     {
-        // Security mock已在setUp中设置用户
-        $this->procedure->type = AftersalesType::REFUND_ONLY;
+        // 创建不同类型的售后数据
+        $this->createAftersales(
+            user: $this->testUser,
+            type: AftersalesType::REFUND_ONLY,
+            state: AftersalesState::PENDING_APPROVAL,
+            reason: RefundReason::QUALITY_ISSUE,
+            description: 'Refund only',
+            refundAmount: '100.00'
+        );
 
-        $this->aftersalesRepository->method('findBy')
-            ->with(self::callback(function ($criteria) {
-                if (!is_array($criteria)) {
-                    return false;
-                }
+        $this->createAftersales(
+            user: $this->testUser,
+            type: AftersalesType::RETURN_REFUND,
+            state: AftersalesState::PENDING_APPROVAL,
+            reason: RefundReason::QUALITY_ISSUE,
+            description: 'Return and refund',
+            refundAmount: '200.00'
+        );
 
-                return AftersalesType::REFUND_ONLY === $criteria['type'];
-            }))
-            ->willReturn([])
-        ;
-        $this->aftersalesRepository->method('count')->willReturn(0);
+        // 只查询仅退款类型的售后
+        $param = new GetAftersalesListParam(type: AftersalesType::REFUND_ONLY);
+        $resultObject = $this->procedure->execute($param);
 
-        $result = $this->procedure->execute();
-
+        $this->assertInstanceOf(ArrayResult::class, $resultObject);
+        $result = $resultObject->toArray();
         $this->assertIsArray($result);
         $items = $result['list'];
         $this->assertIsArray($items);
-        $this->assertEmpty($items);
+        $this->assertCount(1, $items);
+        $this->assertEquals(AftersalesType::REFUND_ONLY->value, $items[0]['type']);
     }
 
     public function testExecuteWithPagination(): void
     {
-        // Security mock已在setUp中设置用户
-        $this->procedure->page = 2;
-        $this->procedure->limit = 5;
+        // 创建 15 条售后数据
+        for ($i = 1; $i <= 15; ++$i) {
+            $this->createAftersales(
+                user: $this->testUser,
+                type: AftersalesType::REFUND_ONLY,
+                state: AftersalesState::PENDING_APPROVAL,
+                reason: RefundReason::QUALITY_ISSUE,
+                description: "Test aftersales {$i}",
+                refundAmount: '100.00'
+            );
+        }
 
-        $this->aftersalesRepository->method('findBy')
-            ->with(
-                self::anything(),
-                ['createTime' => 'DESC'],
-                5,
-                5 // offset = (2-1) * 5
-            )
-            ->willReturn([])
-        ;
-        $this->aftersalesRepository->method('count')->willReturn(15);
+        // 查询第 2 页，每页 5 条
+        $param = new GetAftersalesListParam(page: 2, limit: 5);
+        $resultObject = $this->procedure->execute($param);
 
-        $result = $this->procedure->execute();
-
+        $this->assertInstanceOf(ArrayResult::class, $resultObject);
+        $result = $resultObject->toArray();
         $this->assertIsArray($result);
         $this->assertArrayHasKey('pagination', $result);
         $pagination = $result['pagination'];
@@ -176,5 +184,51 @@ final class GetAftersalesListProcedureTest extends AbstractProcedureTestCase
         $this->assertEquals(5, $pagination['limit']);
         $this->assertEquals(15, $pagination['total']);
         $this->assertEquals(3, $pagination['pages']);
+
+        // 验证返回了 5 条数据
+        $items = $result['list'];
+        $this->assertCount(5, $items);
+    }
+
+    /**
+     * 创建售后实体的辅助方法
+     */
+    private function createAftersales(
+        UserInterface $user,
+        AftersalesType $type,
+        AftersalesState $state,
+        RefundReason $reason,
+        string $description,
+        string $refundAmount,
+    ): Aftersales {
+        $aftersales = new Aftersales();
+        $aftersales->setUser($user);
+        $aftersales->setType($type);
+        $aftersales->setState($state);
+        $aftersales->setStage(AftersalesStage::APPLY);
+        $aftersales->setReason($reason);
+        $aftersales->setDescription($description);
+        $aftersales->setReferenceNumber('REF' . uniqid('', true));
+        $aftersales->setOrderProductId('OP' . uniqid('', true));
+        $aftersales->setProductId('P' . uniqid('', true));
+        $aftersales->setSkuId('SKU' . uniqid('', true));
+        $aftersales->setProductName('Test Product');
+        $aftersales->setSkuName('Test SKU');
+        $aftersales->setQuantity(1);
+        $aftersales->setOriginalPrice('100.00');
+        $aftersales->setPaidPrice('100.00');
+        $aftersales->setRefundAmount($refundAmount);
+        $aftersales->setOriginalRefundAmount($refundAmount);
+        $aftersales->setActualRefundAmount($refundAmount);
+        $aftersales->setProofImages([]);
+        $aftersales->setProductSnapshot([
+            'skuMainImage' => 'https://example.com/image.jpg',
+            'paidPrice' => '100.00',
+        ]);
+
+        $this->em->persist($aftersales);
+        $this->em->flush();
+
+        return $aftersales;
     }
 }

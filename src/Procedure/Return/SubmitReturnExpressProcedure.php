@@ -9,15 +9,17 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
-use Tourze\JsonRPC\Core\Attribute\MethodParam;
 use Tourze\JsonRPC\Core\Attribute\MethodTag;
+use Tourze\JsonRPC\Core\Contracts\RpcParamInterface;
 use Tourze\JsonRPC\Core\Exception\ApiException;
 use Tourze\JsonRPC\Core\Procedure\BaseProcedure;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
 use Tourze\OrderRefundBundle\Entity\ReturnOrder;
 use Tourze\OrderRefundBundle\Enum\AftersalesStage;
 use Tourze\OrderRefundBundle\Enum\AftersalesState;
 use Tourze\OrderRefundBundle\Enum\AftersalesType;
+use Tourze\OrderRefundBundle\Param\Return\SubmitReturnExpressParam;
 use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 use Tourze\OrderRefundBundle\Repository\ReturnOrderRepository;
 use Tourze\OrderRefundBundle\Service\ExpressTrackingService;
@@ -28,18 +30,6 @@ use Tourze\OrderRefundBundle\Service\ExpressTrackingService;
 #[IsGranted(attribute: 'ROLE_USER')]
 class SubmitReturnExpressProcedure extends BaseProcedure
 {
-    #[MethodParam(description: '售后单ID')]
-    public int|string $aftersalesId;
-
-    #[MethodParam(description: '快递公司')]
-    public string $expressCompany;
-
-    #[MethodParam(description: '快递单号')]
-    public string $trackingNo;
-
-    #[MethodParam(description: '备注信息')]
-    public ?string $remark = null;
-
     public function __construct(
         private readonly Security $security,
         private readonly AftersalesRepository $aftersalesRepository,
@@ -48,23 +38,26 @@ class SubmitReturnExpressProcedure extends BaseProcedure
     ) {
     }
 
-    public function execute(): array
+    /**
+     * @phpstan-param SubmitReturnExpressParam $param
+     */
+    public function execute(SubmitReturnExpressParam|RpcParamInterface $param): ArrayResult
     {
         $user = $this->getCurrentUser();
-        $aftersales = $this->validateAftersales($user);
+        $aftersales = $this->validateAftersales($user, $param);
         $returnOrder = $this->getOrCreateReturnOrder($aftersales);
 
         // 验证物流信息格式
-        $this->validateExpressInfo();
+        $this->validateExpressInfo($param);
 
         // 检查是否已提交过物流信息
         $this->checkDuplicateSubmission($returnOrder);
 
         // 更新退货物流信息
-        $returnOrder->markAsShipped($this->expressCompany, $this->trackingNo);
+        $returnOrder->markAsShipped($param->expressCompany, $param->trackingNo);
 
-        if (null !== $this->remark && '' !== trim($this->remark)) {
-            $returnOrder->setRemark($this->remark);
+        if (null !== $param->remark && '' !== trim($param->remark)) {
+            $returnOrder->setRemark($param->remark);
         }
 
         // 更新售后状态
@@ -76,7 +69,7 @@ class SubmitReturnExpressProcedure extends BaseProcedure
         // 保存数据
         $this->returnOrderRepository->save($returnOrder, true);
 
-        return [
+        return new ArrayResult([
             'success' => true,
             'message' => '物流信息提交成功',
             'data' => [
@@ -87,7 +80,7 @@ class SubmitReturnExpressProcedure extends BaseProcedure
                 'shipTime' => $returnOrder->getShipTime()?->format('Y-m-d H:i:s'),
                 'trackingUrl' => $this->expressTrackingService->generateTrackingUrlForReturn($returnOrder),
             ],
-        ];
+        ]);
     }
 
     private function getCurrentUser(): UserInterface
@@ -100,13 +93,13 @@ class SubmitReturnExpressProcedure extends BaseProcedure
         return $user;
     }
 
-    private function validateAftersales(UserInterface $user): Aftersales
+    private function validateAftersales(UserInterface $user, SubmitReturnExpressParam $param): Aftersales
     {
-        if ('' === $this->aftersalesId) {
+        if ('' === $param->aftersalesId) {
             throw new ApiException('售后单ID不能为空');
         }
 
-        $aftersales = $this->aftersalesRepository->find($this->aftersalesId);
+        $aftersales = $this->aftersalesRepository->find($param->aftersalesId);
         if (null === $aftersales) {
             throw new ApiException('售后单不存在');
         }
@@ -148,31 +141,31 @@ class SubmitReturnExpressProcedure extends BaseProcedure
         return $returnOrder;
     }
 
-    private function validateExpressInfo(): void
+    private function validateExpressInfo(SubmitReturnExpressParam $param): void
     {
-        if ('' === trim($this->expressCompany)) {
+        if ('' === trim($param->expressCompany)) {
             throw new ApiException('快递公司不能为空');
         }
 
-        if ('' === trim($this->trackingNo)) {
+        if ('' === trim($param->trackingNo)) {
             throw new ApiException('快递单号不能为空');
         }
 
-        if (strlen($this->expressCompany) > 50) {
+        if (strlen($param->expressCompany) > 50) {
             throw new ApiException('快递公司名称过长');
         }
 
-        if (strlen($this->trackingNo) > 50) {
+        if (strlen($param->trackingNo) > 50) {
             throw new ApiException('快递单号过长');
         }
 
         // 快递单号格式验证（基础验证，避免明显的错误）
-        if (1 !== preg_match('/^[A-Za-z0-9]+$/', $this->trackingNo)) {
+        if (1 !== preg_match('/^[A-Za-z0-9]+$/', $param->trackingNo)) {
             throw new ApiException('快递单号格式不正确，只能包含字母和数字');
         }
 
         // 验证快递公司是否存在且启用
-        if (!$this->expressTrackingService->validateExpressCompany($this->expressCompany)) {
+        if (!$this->expressTrackingService->validateExpressCompany($param->expressCompany)) {
             throw new ApiException('不支持的快递公司或快递公司已停用');
         }
     }

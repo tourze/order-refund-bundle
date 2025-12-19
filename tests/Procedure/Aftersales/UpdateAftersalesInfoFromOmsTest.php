@@ -7,15 +7,16 @@ namespace Tourze\OrderRefundBundle\Tests\Procedure\Aftersales;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Tourze\JsonRPC\Core\Exception\ApiException;
-use Tourze\JsonRPC\Core\Tests\AbstractProcedureTestCase;
+use Tourze\OrderRefundBundle\Param\Aftersales\UpdateAftersalesInfoFromOmsParam;
 use Tourze\OrderRefundBundle\Procedure\Aftersales\UpdateAftersalesInfoFromOms;
+use Tourze\PHPUnitJsonRPC\AbstractProcedureTestCase;
 
 /**
  * @internal
  */
 #[CoversClass(UpdateAftersalesInfoFromOms::class)]
 #[RunTestsInSeparateProcesses]
-class UpdateAftersalesInfoFromOmsTest extends AbstractProcedureTestCase
+final class UpdateAftersalesInfoFromOmsTest extends AbstractProcedureTestCase
 {
     private UpdateAftersalesInfoFromOms $procedure;
 
@@ -33,17 +34,9 @@ class UpdateAftersalesInfoFromOmsTest extends AbstractProcedureTestCase
     {
         $this->expectException(ApiException::class);
         $this->expectExceptionMessage('售后单号不能为空');
-        $this->procedure->execute();
-    }
-
-    public function testGetMockResult(): void
-    {
-        $mockResult = UpdateAftersalesInfoFromOms::getMockResult();
-
-        $this->assertIsArray($mockResult);
-        $this->assertTrue($mockResult['success']);
-        $this->assertEquals('售后单信息修改成功', $mockResult['message']);
-        $this->assertArrayHasKey('aftersalesId', $mockResult);
-        $this->assertArrayHasKey('modifiedFields', $mockResult);
+        $param = new UpdateAftersalesInfoFromOmsParam(
+            aftersalesNo: '',
+        );
+        $this->procedure->execute($param);
     }
 }

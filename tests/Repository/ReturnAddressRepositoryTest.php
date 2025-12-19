@@ -76,6 +76,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $entity = new ReturnAddress();
         $entity->setName('测试地址');
         $entity->setProvince('测试省');
+        $entity->setCity('测试市');
+        $entity->setAddress('测试详细地址');
+        $entity->setContactName('测试联系人');
+        $entity->setContactPhone('13800138000');
 
         $this->repository->save($entity, true);
         $entityId = $entity->getId();
@@ -92,10 +96,16 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
 
     public function testFindDefaultAddress(): void
     {
+        $this->clearTable();
+
         // 创建非默认地址
         $nonDefaultAddress = new ReturnAddress();
         $nonDefaultAddress->setName('非默认地址');
         $nonDefaultAddress->setProvince('测试省');
+        $nonDefaultAddress->setCity('测试市');
+        $nonDefaultAddress->setAddress('测试详细地址');
+        $nonDefaultAddress->setContactName('测试联系人');
+        $nonDefaultAddress->setContactPhone('13800138000');
         $nonDefaultAddress->setIsActive(true);
         $nonDefaultAddress->setIsDefault(false);
 
@@ -103,6 +113,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $defaultAddress = new ReturnAddress();
         $defaultAddress->setName('默认地址');
         $defaultAddress->setProvince('测试省');
+        $defaultAddress->setCity('测试市');
+        $defaultAddress->setAddress('测试详细地址');
+        $defaultAddress->setContactName('测试联系人');
+        $defaultAddress->setContactPhone('13800138000');
         $defaultAddress->setIsActive(true);
         $defaultAddress->setIsDefault(true);
 
@@ -110,6 +124,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $inactiveDefaultAddress = new ReturnAddress();
         $inactiveDefaultAddress->setName('非活跃默认地址');
         $inactiveDefaultAddress->setProvince('测试省');
+        $inactiveDefaultAddress->setCity('测试市');
+        $inactiveDefaultAddress->setAddress('测试详细地址');
+        $inactiveDefaultAddress->setContactName('测试联系人');
+        $inactiveDefaultAddress->setContactPhone('13800138000');
         $inactiveDefaultAddress->setIsActive(false);
         $inactiveDefaultAddress->setIsDefault(true);
 
@@ -132,6 +150,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $address = new ReturnAddress();
         $address->setName('非默认地址');
         $address->setProvince('测试省');
+        $address->setCity('测试市');
+        $address->setAddress('测试详细地址');
+        $address->setContactName('测试联系人');
+        $address->setContactPhone('13800138000');
         $address->setIsActive(true);
         $address->setIsDefault(false);
 
@@ -149,12 +171,20 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $activeAddress1 = new ReturnAddress();
         $activeAddress1->setName('B仓库');
         $activeAddress1->setProvince('广东省');
+        $activeAddress1->setCity('深圳市');
+        $activeAddress1->setAddress('测试详细地址');
+        $activeAddress1->setContactName('测试联系人');
+        $activeAddress1->setContactPhone('13800138000');
         $activeAddress1->setIsActive(true);
         $activeAddress1->setSortOrder(2);
 
         $activeAddress2 = new ReturnAddress();
         $activeAddress2->setName('A仓库');
         $activeAddress2->setProvince('广东省');
+        $activeAddress2->setCity('深圳市');
+        $activeAddress2->setAddress('测试详细地址');
+        $activeAddress2->setContactName('测试联系人');
+        $activeAddress2->setContactPhone('13800138000');
         $activeAddress2->setIsActive(true);
         $activeAddress2->setSortOrder(1);
 
@@ -162,6 +192,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $inactiveAddress = new ReturnAddress();
         $inactiveAddress->setName('已停用仓库');
         $inactiveAddress->setProvince('广东省');
+        $inactiveAddress->setCity('深圳市');
+        $inactiveAddress->setAddress('测试详细地址');
+        $inactiveAddress->setContactName('测试联系人');
+        $inactiveAddress->setContactPhone('13800138000');
         $inactiveAddress->setIsActive(false);
 
         $this->repository->save($activeAddress1, false);
@@ -185,6 +219,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $currentDefault = new ReturnAddress();
         $currentDefault->setName('当前默认');
         $currentDefault->setProvince('测试省');
+        $currentDefault->setCity('测试市');
+        $currentDefault->setAddress('测试详细地址');
+        $currentDefault->setContactName('测试联系人');
+        $currentDefault->setContactPhone('13800138000');
         $currentDefault->setIsActive(true);
         $currentDefault->setIsDefault(true);
 
@@ -192,6 +230,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $newDefault = new ReturnAddress();
         $newDefault->setName('新默认');
         $newDefault->setProvince('测试省');
+        $newDefault->setCity('测试市');
+        $newDefault->setAddress('测试详细地址');
+        $newDefault->setContactName('测试联系人');
+        $newDefault->setContactPhone('13800138000');
         $newDefault->setIsActive(false); // 初始为非活跃状态
         $newDefault->setIsDefault(false);
 
@@ -200,6 +242,9 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
 
         // 设置新的默认地址
         $this->repository->setDefaultAddress($newDefault);
+
+        // 清除实体管理器缓存，以便重新从数据库加载实体
+        self::getEntityManager()->clear();
 
         // 验证旧的默认地址不再是默认
         $updatedCurrentDefault = $this->repository->find($currentDefault->getId());
@@ -219,11 +264,19 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $default1 = new ReturnAddress();
         $default1->setName('默认1');
         $default1->setProvince('测试省');
+        $default1->setCity('测试市');
+        $default1->setAddress('测试详细地址');
+        $default1->setContactName('测试联系人');
+        $default1->setContactPhone('13800138000');
         $default1->setIsDefault(true);
 
         $default2 = new ReturnAddress();
         $default2->setName('默认2');
         $default2->setProvince('测试省');
+        $default2->setCity('测试市');
+        $default2->setAddress('测试详细地址');
+        $default2->setContactName('测试联系人');
+        $default2->setContactPhone('13800138000');
         $default2->setIsDefault(true);
 
         $this->repository->save($default1, false);
@@ -231,6 +284,9 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
 
         // 清除所有默认标记
         $this->repository->clearAllDefaultAddresses();
+
+        // 清除实体管理器缓存，以便重新从数据库加载实体
+        self::getEntityManager()->clear();
 
         // 验证所有地址都不再是默认
         $updated1 = $this->repository->find($default1->getId());
@@ -264,6 +320,9 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
             $address->setName($addressData['name']);
             $address->setProvince($addressData['province']);
             $address->setCity($addressData['city']);
+            $address->setAddress('测试详细地址');
+            $address->setContactName('测试联系人');
+            $address->setContactPhone('13800138000');
             $address->setSortOrder($addressData['sortOrder']);
             $address->setIsActive($addressData['isActive'] ?? true);
             $this->repository->save($address, false);
@@ -302,16 +361,28 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $activeAddress1 = new ReturnAddress();
         $activeAddress1->setName('活跃1');
         $activeAddress1->setProvince('测试省');
+        $activeAddress1->setCity('测试市');
+        $activeAddress1->setAddress('测试详细地址');
+        $activeAddress1->setContactName('测试联系人');
+        $activeAddress1->setContactPhone('13800138000');
         $activeAddress1->setIsActive(true);
 
         $activeAddress2 = new ReturnAddress();
         $activeAddress2->setName('活跃2');
         $activeAddress2->setProvince('测试省');
+        $activeAddress2->setCity('测试市');
+        $activeAddress2->setAddress('测试详细地址');
+        $activeAddress2->setContactName('测试联系人');
+        $activeAddress2->setContactPhone('13800138000');
         $activeAddress2->setIsActive(true);
 
         $inactiveAddress = new ReturnAddress();
         $inactiveAddress->setName('非活跃');
         $inactiveAddress->setProvince('测试省');
+        $inactiveAddress->setCity('测试市');
+        $inactiveAddress->setAddress('测试详细地址');
+        $inactiveAddress->setContactName('测试联系人');
+        $inactiveAddress->setContactPhone('13800138000');
         $inactiveAddress->setIsActive(false);
 
         $this->repository->save($activeAddress1, false);
@@ -333,6 +404,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $nonDefault = new ReturnAddress();
         $nonDefault->setName('非默认');
         $nonDefault->setProvince('测试省');
+        $nonDefault->setCity('测试市');
+        $nonDefault->setAddress('测试详细地址');
+        $nonDefault->setContactName('测试联系人');
+        $nonDefault->setContactPhone('13800138000');
         $nonDefault->setIsActive(true);
         $nonDefault->setIsDefault(false);
 
@@ -343,6 +418,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $default = new ReturnAddress();
         $default->setName('默认');
         $default->setProvince('测试省');
+        $default->setCity('测试市');
+        $default->setAddress('测试详细地址');
+        $default->setContactName('测试联系人');
+        $default->setContactPhone('13800138000');
         $default->setIsActive(true);
         $default->setIsDefault(true);
 
@@ -357,18 +436,30 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $address1 = new ReturnAddress();
         $address1->setName('B地址');
         $address1->setProvince('测试省');
+        $address1->setCity('测试市');
+        $address1->setAddress('测试详细地址');
+        $address1->setContactName('测试联系人');
+        $address1->setContactPhone('13800138000');
         $address1->setIsActive(true);
         $address1->setSortOrder(2);
 
         $address2 = new ReturnAddress();
         $address2->setName('A地址');
         $address2->setProvince('测试省');
+        $address2->setCity('测试市');
+        $address2->setAddress('测试详细地址');
+        $address2->setContactName('测试联系人');
+        $address2->setContactPhone('13800138000');
         $address2->setIsActive(true);
         $address2->setSortOrder(1);
 
         $inactiveAddress = new ReturnAddress();
         $inactiveAddress->setName('非活跃');
         $inactiveAddress->setProvince('测试省');
+        $inactiveAddress->setCity('测试市');
+        $inactiveAddress->setAddress('测试详细地址');
+        $inactiveAddress->setContactName('测试联系人');
+        $inactiveAddress->setContactPhone('13800138000');
         $inactiveAddress->setIsActive(false);
         $inactiveAddress->setSortOrder(0);
 
@@ -388,6 +479,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $inactiveAddress = new ReturnAddress();
         $inactiveAddress->setName('非活跃');
         $inactiveAddress->setProvince('测试省');
+        $inactiveAddress->setCity('测试市');
+        $inactiveAddress->setAddress('测试详细地址');
+        $inactiveAddress->setContactName('测试联系人');
+        $inactiveAddress->setContactPhone('13800138000');
         $inactiveAddress->setIsActive(false);
 
         $this->repository->save($inactiveAddress, true);
@@ -410,6 +505,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
             $address = new ReturnAddress();
             $address->setName("地址{$i}");
             $address->setProvince('测试省');
+            $address->setCity('测试市');
+            $address->setAddress('测试详细地址');
+            $address->setContactName('测试联系人');
+            $address->setContactPhone('13800138000');
             $address->setIsActive(!$isActive); // 初始状态相反
             $this->repository->save($address, false);
             $addresses[] = $address;
@@ -426,6 +525,9 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         // 执行批量更新
         $updated = $this->repository->updateActiveStatus($actualIds, $isActive);
         $this->assertSame($expectedUpdated, $updated);
+
+        // 清除实体管理器缓存，以便重新从数据库加载实体
+        self::getEntityManager()->clear();
 
         // 验证更新结果
         for ($i = 0; $i < count($actualIds); ++$i) {
@@ -454,6 +556,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $address = new ReturnAddress();
         $address->setName('唯一名称');
         $address->setProvince('测试省');
+        $address->setCity('测试市');
+        $address->setAddress('测试详细地址');
+        $address->setContactName('测试联系人');
+        $address->setContactPhone('13800138000');
         $address->setIsActive(true);
 
         $this->repository->save($address, true);
@@ -471,6 +577,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $inactiveAddress = new ReturnAddress();
         $inactiveAddress->setName('非活跃地址');
         $inactiveAddress->setProvince('测试省');
+        $inactiveAddress->setCity('测试市');
+        $inactiveAddress->setAddress('测试详细地址');
+        $inactiveAddress->setContactName('测试联系人');
+        $inactiveAddress->setContactPhone('13800138000');
         $inactiveAddress->setIsActive(false);
 
         $this->repository->save($inactiveAddress, true);
@@ -484,6 +594,10 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
         $address = new ReturnAddress();
         $address->setName('已存在');
         $address->setProvince('测试省');
+        $address->setCity('测试市');
+        $address->setAddress('测试详细地址');
+        $address->setContactName('测试联系人');
+        $address->setContactPhone('13800138000');
 
         $this->repository->save($address, true);
         $addressId = $address->getId();
@@ -505,6 +619,6 @@ final class ReturnAddressRepositoryTest extends AbstractRepositoryTestCase
     {
         $entityManager = self::getEntityManager();
         $connection = $entityManager->getConnection();
-        $connection->executeStatement('DELETE FROM return_address');
+        $connection->executeStatement('DELETE FROM order_return_addresses');
     }
 }

@@ -9,7 +9,7 @@ use Tourze\OrderRefundBundle\Entity\Aftersales;
 /**
  * 售后处理中事件
  */
-class AftersalesProcessingEvent extends AbstractAftersalesEvent
+final class AftersalesProcessingEvent extends AbstractAftersalesEvent
 {
     public const NAME = 'aftersales.processing';
 

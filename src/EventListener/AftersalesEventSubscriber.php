@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tourze\OrderRefundBundle\EventListener;
 
 use Monolog\Attribute\WithMonologChannel;
+use OrderCoreBundle\Enum\AftersaleStatus;
 use OrderCoreBundle\Repository\ContractRepository;
+use OrderCoreBundle\Repository\OrderProductRepository;
 use OrderCoreBundle\Service\OrderService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -24,12 +26,13 @@ use Tourze\StockManageBundle\Service\StockServiceInterface;
  * 售后事件订阅器
  */
 #[WithMonologChannel(channel: 'order_refund')]
-class AftersalesEventSubscriber implements EventSubscriberInterface
+final class AftersalesEventSubscriber implements EventSubscriberInterface
 {
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly AftersalesRepository $aftersalesRepository,
         private readonly ContractRepository $contractRepository,
+        private readonly OrderProductRepository $orderProductRepository,
         private readonly ?StockServiceInterface $stockService = null,
         private readonly ?SkuServiceInterface $skuService = null,
         private readonly ?OrderService $orderService = null,
@@ -59,6 +62,11 @@ class AftersalesEventSubscriber implements EventSubscriberInterface
         ]);
 
         // 这里可以添加其他逻辑，如发送通知、创建工单等
+        $orderProduct = $this->orderProductRepository->findOneBy(['id' => $event->getAftersales()->getOrderProductId()]);
+        if (null !== $orderProduct) {
+            $orderProduct->setAftersaleStatus(AftersaleStatus::UNDER_REVIEW);
+            $this->orderProductRepository->save($orderProduct);
+        }
     }
 
     public function onAftersalesStatusChanged(AftersalesStatusChangedEvent $event): void
@@ -131,12 +139,22 @@ class AftersalesEventSubscriber implements EventSubscriberInterface
     {
         // 审核通过后的逻辑
         $this->logger->debug('处理售后审核通过逻辑');
+        $orderProduct = $this->orderProductRepository->findOneBy(['id' => $event->getAftersales()->getOrderProductId()]);
+        if (null !== $orderProduct) {
+            $orderProduct->setAftersaleStatus(AftersaleStatus::APPROVED);
+            $this->orderProductRepository->save($orderProduct);
+        }
     }
 
     private function handleRejection(AftersalesStatusChangedEvent $event): void
     {
         // 审核拒绝后的逻辑
         $this->logger->debug('处理售后审核拒绝逻辑');
+        $orderProduct = $this->orderProductRepository->findOneBy(['id' => $event->getAftersales()->getOrderProductId()]);
+        if (null !== $orderProduct) {
+            $orderProduct->setAftersaleStatus(AftersaleStatus::NORMAL);
+            $this->orderProductRepository->save($orderProduct);
+        }
     }
 
     private function handleProcessingStart(AftersalesStatusChangedEvent $event): void
@@ -149,6 +167,12 @@ class AftersalesEventSubscriber implements EventSubscriberInterface
     {
         // 完成后的逻辑
         $this->logger->debug('处理售后完成逻辑');
+
+        $orderProduct = $this->orderProductRepository->findOneBy(['id' => $event->getAftersales()->getOrderProductId()]);
+        if (null !== $orderProduct) {
+            $orderProduct->setAftersaleStatus(AftersaleStatus::COMPLETED);
+            $this->orderProductRepository->save($orderProduct);
+        }
     }
 
     private function handleCompletionLogic(AftersalesCompletedEvent $event): void

@@ -28,8 +28,8 @@
     "symfony/event-dispatcher": "^7.3",
     "symfony/event-dispatcher-contracts": "^3",
     "symfony/form": "^7.3",
-    "symfony/framework-bundle": "^7.3",
-    "symfony/http-foundation": "^7.3",
+    "symfony/framework-bundle": "^7.4",
+    "symfony/http-foundation": "^7.4",
     "symfony/http-kernel": "^7.3",
     "symfony/lock": "^7.3",
     "symfony/messenger": "^7.3",
@@ -57,7 +57,7 @@
     "tourze/enum-extra": "1.0.*",
     "tourze/json-rpc-cache-bundle": "1.0.*",
     "tourze/json-rpc-check-ip-bundle": "0.0.*",
-    "tourze/json-rpc-core": "1.0.*",
+    "tourze/json-rpc-core": "2.0.*",
     "tourze/json-rpc-lock-bundle": "1.0.*",
     "tourze/json-rpc-log-bundle": "1.0.*",
     "tourze/lock-service-bundle": "1.0.*",
@@ -79,9 +79,10 @@
     "tourze/phpunit-base": "1.*",
     "tourze/phpunit-doctrine-entity": "1.*",
     "tourze/phpunit-enum": "1.*",
-    "tourze/phpunit-symfony-kernel-test": "1.0.*",
-    "tourze/phpunit-symfony-unit-test": "1.*",
-    "tourze/phpunit-symfony-web-test": "1.*"
+    "tourze/phpunit-json-rpc": "1.0.*",
+    "tourze/phpunit-symfony-kernel-test": "2.0.*",
+    "tourze/phpunit-symfony-unit-test": "2.0.*",
+    "tourze/phpunit-symfony-web-test": "2.0.*"
   },
   "autoload": {
     "psr-4": {

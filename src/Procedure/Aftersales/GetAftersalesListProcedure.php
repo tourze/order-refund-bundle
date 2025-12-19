@@ -10,13 +10,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Constraints as Assert;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
-use Tourze\JsonRPC\Core\Attribute\MethodParam;
 use Tourze\JsonRPC\Core\Attribute\MethodTag;
+use Tourze\JsonRPC\Core\Contracts\RpcParamInterface;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\JsonRPC\Core\Exception\ApiException;
-use Tourze\JsonRPC\Core\Model\JsonRpcRequest;
 use Tourze\JsonRPC\Core\Procedure\BaseProcedure;
-use Tourze\OrderRefundBundle\Enum\AftersalesState;
-use Tourze\OrderRefundBundle\Enum\AftersalesType;
+use Tourze\OrderRefundBundle\Param\Aftersales\GetAftersalesListParam;
 use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 
 #[MethodTag(name: '售后管理')]
@@ -25,29 +24,16 @@ use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 #[IsGranted(attribute: 'ROLE_USER')]
 class GetAftersalesListProcedure extends BaseProcedure
 {
-    #[MethodParam(description: '页码')]
-    #[Assert\Positive]
-    public int $page = 1;
-
-    #[MethodParam(description: '每页数量')]
-    #[Assert\Range(min: 1, max: 50)]
-    public int $limit = 10;
-
-    #[MethodParam(description: '售后状态筛选')]
-    #[Assert\Choice(callback: [AftersalesState::class, 'cases'])]
-    public ?AftersalesState $state = null;
-
-    #[MethodParam(description: '售后类型筛选')]
-    #[Assert\Choice(callback: [AftersalesType::class, 'cases'])]
-    public ?AftersalesType $type = null;
-
     public function __construct(
         private readonly Security $security,
         private readonly AftersalesRepository $aftersalesRepository,
     ) {
     }
 
-    public function execute(): array
+    /**
+     * @phpstan-param GetAftersalesListParam $param
+     */
+    public function execute(GetAftersalesListParam|RpcParamInterface $param): ArrayResult
     {
         $user = $this->security->getUser();
         if (!$user instanceof UserInterface) {
@@ -55,17 +41,17 @@ class GetAftersalesListProcedure extends BaseProcedure
         }
 
         $criteria = ['user' => $user];
-        if (null !== $this->state) {
-            $criteria['state'] = $this->state;
+        if (null !== $param->state) {
+            $criteria['state'] = $param->state;
         }
-        if (null !== $this->type) {
-            $criteria['type'] = $this->type;
+        if (null !== $param->type) {
+            $criteria['type'] = $param->type;
         }
 
-        $offset = ($this->page - 1) * $this->limit;
+        $offset = ($param->page - 1) * $param->limit;
         $orderBy = ['createTime' => 'DESC'];
 
-        $aftersalesList = $this->aftersalesRepository->findBy($criteria, $orderBy, $this->limit, $offset);
+        $aftersalesList = $this->aftersalesRepository->findBy($criteria, $orderBy, $param->limit, $offset);
         $total = $this->aftersalesRepository->count($criteria);
 
         $items = [];
@@ -110,14 +96,14 @@ class GetAftersalesListProcedure extends BaseProcedure
             ];
         }
 
-        return [
+        return new ArrayResult([
             'list' => $items,
             'pagination' => [
-                'page' => $this->page,
-                'limit' => $this->limit,
+                'page' => $param->page,
+                'limit' => $param->limit,
                 'total' => $total,
-                'pages' => (int) ceil($total / $this->limit),
+                'pages' => (int) ceil($total / $param->limit),
             ],
-        ];
+        ]);
     }
 }

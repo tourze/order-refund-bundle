@@ -10,11 +10,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Constraints as Assert;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
-use Tourze\JsonRPC\Core\Attribute\MethodParam;
 use Tourze\JsonRPC\Core\Attribute\MethodTag;
+use Tourze\JsonRPC\Core\Contracts\RpcParamInterface;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\JsonRPC\Core\Exception\ApiException;
 use Tourze\JsonRPC\Core\Procedure\BaseProcedure;
 use Tourze\OrderRefundBundle\Entity\Aftersales;
+use Tourze\OrderRefundBundle\Param\Aftersales\GetAftersalesDetailParam;
 use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 use Tourze\OrderRefundBundle\Repository\ReturnOrderRepository;
 use Tourze\OrderRefundBundle\Service\ExpressTrackingService;
@@ -26,9 +28,6 @@ use Tourze\OrderRefundBundle\Service\ReturnAddressService;
 #[IsGranted(attribute: 'ROLE_USER')]
 class GetAftersalesDetailProcedure extends BaseProcedure
 {
-    #[MethodParam(description: '售后单ID')]
-    public int|string $id;
-
     public function __construct(
         private readonly Security $security,
         private readonly AftersalesRepository $aftersalesRepository,
@@ -38,14 +37,17 @@ class GetAftersalesDetailProcedure extends BaseProcedure
     ) {
     }
 
-    public function execute(): array
+    /**
+     * @phpstan-param GetAftersalesDetailParam $param
+     */
+    public function execute(GetAftersalesDetailParam|RpcParamInterface $param): ArrayResult
     {
         $user = $this->security->getUser();
         if (!$user instanceof UserInterface) {
             throw new ApiException('用户未登录或类型错误');
         }
 
-        $aftersales = $this->aftersalesRepository->find($this->id);
+        $aftersales = $this->aftersalesRepository->find($param->id);
 
         if (null === $aftersales) {
             throw new ApiException('售后单不存在');
@@ -64,7 +66,7 @@ class GetAftersalesDetailProcedure extends BaseProcedure
         $returnAddress = $this->returnAddressService->getDefaultAddressForApi();
         $returnLogistics = $this->getReturnLogisticsInfo($aftersales);
 
-        return [
+        return new ArrayResult([
             'id' => $aftersales->getId(),
             'referenceNumber' => $aftersales->getReferenceNumber(),
             'type' => $type?->value,
@@ -111,7 +113,7 @@ class GetAftersalesDetailProcedure extends BaseProcedure
             'modificationCount' => $aftersales->getModificationCount(),
             'returnAddress' => $returnAddress,
             'returnLogistics' => $returnLogistics,
-        ];
+        ]);
     }
 
     /**
@@ -128,7 +130,7 @@ class GetAftersalesDetailProcedure extends BaseProcedure
 
         $trackingUrl = $this->expressTrackingService->generateTrackingUrlForReturn($returnOrder);
 
-        return [
+        return new ArrayResult([
             'expressCompany' => $returnOrder->getExpressCompany(),
             'trackingNo' => $returnOrder->getTrackingNo(),
             'shipTime' => $returnOrder->getShipTime()?->format('Y-m-d H:i:s'),
@@ -136,6 +138,6 @@ class GetAftersalesDetailProcedure extends BaseProcedure
             'statusLabel' => $returnOrder->getStatus()->getLabel(),
             'trackingUrl' => $trackingUrl,
             'remark' => $returnOrder->getRemark(),
-        ];
+        ]);
     }
 }

@@ -36,7 +36,8 @@ final class ProductImageExtractorTest extends TestCase
             ['url' => 'image1.jpg', 'sort' => 1],
             ['url' => 'image2.jpg', 'sort' => 2],
         ];
-        $spu = $this->createSpuMock($images);
+        $spu = new Spu();
+        $spu->setImages($images);
 
         $result = $this->extractor->getProductImages($spu);
 
@@ -56,7 +57,8 @@ final class ProductImageExtractorTest extends TestCase
             ['url' => 'main.jpg', 'sort' => 1],
             ['url' => 'secondary.jpg', 'sort' => 2],
         ];
-        $spu = $this->createSpuMock($images);
+        $spu = new Spu();
+        $spu->setImages($images);
 
         $result = $this->extractor->getProductMainImage($spu);
 
@@ -65,7 +67,8 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetProductMainImageWithEmptyImages(): void
     {
-        $spu = $this->createSpuMock([]);
+        $spu = new Spu();
+        $spu->setImages([]);
 
         $result = $this->extractor->getProductMainImage($spu);
 
@@ -77,7 +80,8 @@ final class ProductImageExtractorTest extends TestCase
         $images = [
             ['sort' => 1], // No url key
         ];
-        $spu = $this->createSpuMock($images);
+        $spu = new Spu();
+        $spu->setImages($images);
 
         $result = $this->extractor->getProductMainImage($spu);
 
@@ -97,7 +101,8 @@ final class ProductImageExtractorTest extends TestCase
             ['url' => 'thumb1.jpg'],
             ['url' => 'thumb2.jpg'],
         ];
-        $sku = $this->createSkuMock($thumbs);
+        $sku = new Sku();
+        $sku->setThumbs($thumbs);
 
         $result = $this->extractor->getSkuImages($sku);
 
@@ -113,7 +118,8 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetSkuMainImageWithNullThumbs(): void
     {
-        $sku = $this->createSkuMock(null);
+        $sku = new Sku();
+        $sku->setThumbs(null);
 
         $result = $this->extractor->getSkuMainImage($sku);
 
@@ -122,7 +128,8 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetSkuMainImageWithEmptyThumbs(): void
     {
-        $sku = $this->createSkuMock([]);
+        $sku = new Sku();
+        $sku->setThumbs([]);
 
         $result = $this->extractor->getSkuMainImage($sku);
 
@@ -135,7 +142,8 @@ final class ProductImageExtractorTest extends TestCase
             ['url' => 'main-thumb.jpg'],
             ['url' => 'second-thumb.jpg'],
         ];
-        $sku = $this->createSkuMock($thumbs);
+        $sku = new Sku();
+        $sku->setThumbs($thumbs);
 
         $result = $this->extractor->getSkuMainImage($sku);
 
@@ -148,7 +156,8 @@ final class ProductImageExtractorTest extends TestCase
             'string-thumb.jpg',
             'second-string-thumb.jpg',
         ];
-        $sku = $this->createSkuMock($thumbs);
+        $sku = new Sku();
+        $sku->setThumbs($thumbs);
 
         $result = $this->extractor->getSkuMainImage($sku);
 
@@ -161,7 +170,8 @@ final class ProductImageExtractorTest extends TestCase
             123, // Invalid type - this is checked first
             ['url' => 'valid.jpg'], // This won't be reached
         ];
-        $sku = $this->createSkuMock($thumbs);
+        $sku = new Sku();
+        $sku->setThumbs($thumbs);
 
         $result = $this->extractor->getSkuMainImage($sku);
 
@@ -174,7 +184,8 @@ final class ProductImageExtractorTest extends TestCase
         $thumbs = [
             ['name' => 'no-url.jpg'], // No url key
         ];
-        $sku = $this->createSkuMock($thumbs);
+        $sku = new Sku();
+        $sku->setThumbs($thumbs);
 
         $result = $this->extractor->getSkuMainImage($sku);
 
@@ -186,7 +197,8 @@ final class ProductImageExtractorTest extends TestCase
         $thumbs = [
             ['url' => 123], // Non-string url
         ];
-        $sku = $this->createSkuMock($thumbs);
+        $sku = new Sku();
+        $sku->setThumbs($thumbs);
 
         $result = $this->extractor->getSkuMainImage($sku);
 
@@ -202,7 +214,10 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetSkuSpecsWithCompleteData(): void
     {
-        $sku = $this->createSkuMock(null, 'ABC123', 'SKU标题', '件');
+        $sku = new Sku();
+        $sku->setGtin('ABC123');
+        $sku->setTitle('SKU标题');
+        $sku->setUnit('件');
 
         $result = $this->extractor->getSkuSpecs($sku);
 
@@ -216,7 +231,9 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetSkuSpecsWithPartialData(): void
     {
-        $sku = $this->createSkuMock(null, 'DEF456', null, '套');
+        $sku = new Sku();
+        $sku->setGtin('DEF456');
+        $sku->setUnit('套');
 
         $result = $this->extractor->getSkuSpecs($sku);
 
@@ -229,7 +246,9 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetSkuSpecsWithOnlyTitle(): void
     {
-        $sku = $this->createSkuMock(null, null, '仅标题SKU', null);
+        $sku = new Sku();
+        $sku->setGtin(null);
+        $sku->setTitle('仅标题SKU');
 
         $result = $this->extractor->getSkuSpecs($sku);
 
@@ -241,7 +260,9 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetSkuSpecsWithNoData(): void
     {
-        $sku = $this->createSkuMock(null, null, null, null);
+        $sku = new Sku();
+        $sku->setGtin(null);
+        $sku->setTitle(null);
 
         $result = $this->extractor->getSkuSpecs($sku);
 
@@ -250,7 +271,10 @@ final class ProductImageExtractorTest extends TestCase
 
     public function testGetSkuSpecsWithEmptyStrings(): void
     {
-        $sku = $this->createSkuMock(null, '', '', '');
+        $sku = new Sku();
+        $sku->setGtin('');
+        $sku->setTitle('');
+        $sku->setUnit('');
 
         $result = $this->extractor->getSkuSpecs($sku);
 
@@ -260,72 +284,5 @@ final class ProductImageExtractorTest extends TestCase
             'unit' => '',
         ];
         $this->assertSame($expected, $result);
-    }
-
-    /** @param array<mixed>|null $images */
-    private function createSpuMock(?array $images = null): Spu
-    {
-        return new class($images) extends Spu {
-            /**
-             * @param array<mixed>|null $images
-             */
-            // @phpstan-ignore-next-line constructor.missingParentCall
-            public function __construct(private readonly ?array $images)
-            {
-                // Skip parent constructor
-            }
-
-            /**
-             * @return array<array{url: string, sort: int}>
-             * @phpstan-ignore-next-line method.childReturnType
-             */
-            public function getImages(): array
-            {
-                // Test data may not strictly conform to parent type
-                return $this->images ?? []; // @phpstan-ignore return.type
-            }
-        };
-    }
-
-    /**
-     * @param array<mixed>|null $thumbs
-     */
-    private function createSkuMock(?array $thumbs = null, ?string $gtin = null, ?string $title = null, ?string $unit = null): Sku
-    {
-        return new class($thumbs, $gtin, $title, $unit) extends Sku {
-            /**
-             * @param array<mixed>|null $thumbs
-             */
-            // @phpstan-ignore-next-line constructor.missingParentCall
-            public function __construct(
-                private readonly ?array $thumbs,
-                private readonly ?string $gtin,
-                private readonly ?string $title,
-                private readonly ?string $unit,
-            ) {
-                // Skip parent constructor
-            }
-
-            /** @return array<mixed>|null */
-            public function getThumbs(): ?array
-            {
-                return $this->thumbs;
-            }
-
-            public function getGtin(): ?string
-            {
-                return $this->gtin;
-            }
-
-            public function getTitle(): ?string
-            {
-                return $this->title;
-            }
-
-            public function getUnit(): ?string
-            {
-                return $this->unit;
-            }
-        };
     }
 }

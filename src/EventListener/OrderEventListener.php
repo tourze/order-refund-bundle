@@ -12,7 +12,7 @@ use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
 /**
  * 订单事件监听器
  */
-class OrderEventListener
+final class OrderEventListener
 {
     public function __construct(
         private readonly AftersalesRepository $aftersalesRepository,

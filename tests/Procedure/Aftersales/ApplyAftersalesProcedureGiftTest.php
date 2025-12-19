@@ -4,250 +4,297 @@ declare(strict_types=1);
 
 namespace Tourze\OrderRefundBundle\Tests\Procedure\Aftersales;
 
+use Doctrine\ORM\EntityManagerInterface;
 use OrderCoreBundle\Entity\Contract;
+use OrderCoreBundle\Entity\OrderPrice;
 use OrderCoreBundle\Entity\OrderProduct;
-use OrderCoreBundle\Repository\ContractRepository;
+use OrderCoreBundle\Enum\OrderState;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
-use Symfony\Bundle\SecurityBundle\Security;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Tourze\JsonRPC\Core\Exception\ApiException;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
+use Tourze\OrderRefundBundle\Param\Aftersales\ApplyAftersalesParam;
 use Tourze\OrderRefundBundle\Procedure\Aftersales\ApplyAftersalesProcedure;
-use Tourze\OrderRefundBundle\Repository\AftersalesRepository;
-use Tourze\OrderRefundBundle\Service\AftersalesDataBuilder;
-use Tourze\OrderRefundBundle\Service\AftersalesService;
-use Tourze\OrderRefundBundle\Service\AftersalesValidator;
+use Tourze\PHPUnitJsonRPC\AbstractProcedureTestCase;
+use Tourze\ProductCoreBundle\Entity\Sku;
+use Tourze\ProductCoreBundle\Entity\Spu;
+use Tourze\ProductCoreBundle\Enum\PriceType;
+use Tourze\ProductCoreBundle\Enum\SpuState;
 
+/**
+ * ApplyAftersalesProcedure 赠品场景集成测试
+ *
+ * 测试赠品不允许售后的业务规则
+ *
+ * @internal
+ */
 #[CoversClass(ApplyAftersalesProcedure::class)]
-class ApplyAftersalesProcedureGiftTest extends TestCase
+#[RunTestsInSeparateProcesses]
+final class ApplyAftersalesProcedureGiftTest extends AbstractProcedureTestCase
 {
     private ApplyAftersalesProcedure $procedure;
-    private Security|MockObject $security;
-    private AftersalesService|MockObject $aftersalesService;
-    private ContractRepository|MockObject $contractRepository;
-    private AftersalesRepository|MockObject $aftersalesRepository;
-    private AftersalesValidator|MockObject $validator;
-    private AftersalesDataBuilder|MockObject $dataBuilder;
-    private UserInterface|MockObject $user;
-    private Contract|MockObject $contract;
 
-    protected function setUp(): void
+    private EntityManagerInterface $em;
+
+    protected function onSetUp(): void
     {
-        $this->security = $this->createMock(Security::class);
-        $this->aftersalesService = $this->createMock(AftersalesService::class);
-        $this->contractRepository = $this->createMock(ContractRepository::class);
-        $this->aftersalesRepository = $this->createMock(AftersalesRepository::class);
-        $this->validator = $this->createMock(AftersalesValidator::class);
-        $this->dataBuilder = $this->createMock(AftersalesDataBuilder::class);
-        $this->user = $this->createMock(UserInterface::class);
-        $this->contract = $this->createMock(Contract::class);
+        $this->procedure = self::getService(ApplyAftersalesProcedure::class);
+        $this->em = self::getEntityManager();
+    }
 
-        $this->procedure = new ApplyAftersalesProcedure(
-            $this->security,
-            $this->aftersalesService,
-            $this->contractRepository,
-            $this->aftersalesRepository,
-            $this->validator,
-            $this->dataBuilder
+    public function testExecute(): void
+    {
+        // 测试基本的 execute 方法是否可用
+        $user = $this->createNormalUser('execute-test-user', 'password123');
+        $this->setAuthenticatedUser($user);
+
+        $contract = $this->createContract($user, 'CONTRACT-EXECUTE-001');
+        $normalProduct = $this->createNormalProduct($contract, 'EXECUTE-SKU-001');
+
+        $param = new ApplyAftersalesParam(
+            contractId: (string) $contract->getId(),
+            type: 'return_refund',
+            reason: 'quality_issue',
+            description: '商品有质量问题',
+            proofImages: [],
+            items: [
+                [
+                    'orderProductId' => (string) $normalProduct->getId(),
+                    'quantity' => 1,
+                ]
+            ],
         );
+
+        $result = $this->procedure->execute($param);
+
+        $this->assertInstanceOf(ArrayResult::class, $result);
+        $this->assertArrayHasKey('aftersalesList', $result->data);
+        $this->assertArrayHasKey('totalCount', $result->data);
     }
 
     public function testApplyAftersalesWithGiftProduct(): void
     {
-        // 设置测试数据
-        $this->procedure->contractId = '12345';
-        $this->procedure->type = 'return';
-        $this->procedure->reason = 'quality_issue';
-        $this->procedure->description = '商品有质量问题';
-        $this->procedure->proofImages = [];
-        $this->procedure->items = [
-            [
-                'orderProductId' => '123',
-                'quantity' => 1,
-            ]
-        ];
+        // 创建测试用户
+        $user = $this->createNormalUser('gift-test-user-1', 'password123');
+        $this->setAuthenticatedUser($user);
 
-        // Mock 用户
-        $this->security->method('getUser')->willReturn($this->user);
+        // 创建测试合同
+        $contract = $this->createContract($user, 'CONTRACT-GIFT-001');
 
-        // Mock 验证器 - 类型和原因验证通过
-        $this->validator->method('validateAftersalesType')->willReturn(
-            $this->createMock(\Tourze\OrderRefundBundle\Enum\AftersalesType::class)
+        // 创建赠品商品
+        $giftProduct = $this->createGiftProduct($contract, 'GIFT-SKU-001');
+
+        $param = new ApplyAftersalesParam(
+            contractId: (string) $contract->getId(),
+            type: 'return_refund',
+            reason: 'quality_issue',
+            description: '商品有质量问题',
+            proofImages: [],
+            items: [
+                [
+                    'orderProductId' => (string) $giftProduct->getId(),
+                    'quantity' => 1,
+                ]
+            ],
         );
-        $this->validator->method('validateRefundReason')->willReturn(
-            $this->createMock(\Tourze\OrderRefundBundle\Enum\RefundReason::class)
-        );
-
-        // Mock 合同查找
-        $this->contractRepository->method('find')->with('12345')->willReturn($this->contract);
-
-        // Mock 合同验证通过
-        $this->validator->method('validateContract')->willReturn();
-
-        // Mock 查找活跃售后
-        $this->aftersalesRepository->method('findActiveAftersalesByOrderProductIds')->willReturn([]);
-
-        // Mock 商品验证 - 这里会抛出赠品异常
-        $this->validator->method('validateAftersalesItem')
-            ->willThrowException(new \InvalidArgumentException('赠品不允许售后，如有疑问请联系客服'));
 
         // 期望抛出 API 异常
         $this->expectException(ApiException::class);
-        $this->expectExceptionMessage('创建商品 123 的售后单失败: 赠品不允许售后，如有疑问请联系客服');
+        $this->expectExceptionMessage('创建商品 ' . $giftProduct->getId() . ' 的售后单失败: 赠品不允许售后，如有疑问请联系客服');
 
-        $this->procedure->execute();
+        $this->procedure->execute($param);
     }
 
     public function testApplyAftersalesWithNormalProduct(): void
     {
-        // 设置测试数据
-        $this->procedure->contractId = '12345';
-        $this->procedure->type = 'return';
-        $this->procedure->reason = 'quality_issue';
-        $this->procedure->description = '商品有质量问题';
-        $this->procedure->proofImages = [];
-        $this->procedure->items = [
-            [
-                'orderProductId' => '123',
-                'quantity' => 1,
-            ]
-        ];
+        // 创建测试用户
+        $user = $this->createNormalUser('normal-test-user-1', 'password123');
+        $this->setAuthenticatedUser($user);
 
-        // Mock 正常商品
-        $normalProduct = $this->createMock(OrderProduct::class);
-        $normalProduct->method('isGift')->willReturn(false);
+        // 创建测试合同
+        $contract = $this->createContract($user, 'CONTRACT-NORMAL-001');
 
-        // Mock 用户
-        $this->security->method('getUser')->willReturn($this->user);
+        // 创建正常商品
+        $normalProduct = $this->createNormalProduct($contract, 'NORMAL-SKU-001');
 
-        // Mock 验证器 - 类型和原因验证通过
-        $aftersalesType = $this->createMock(\Tourze\OrderRefundBundle\Enum\AftersalesType::class);
-        $refundReason = $this->createMock(\Tourze\OrderRefundBundle\Enum\RefundReason::class);
-        $this->validator->method('validateAftersalesType')->willReturn($aftersalesType);
-        $this->validator->method('validateRefundReason')->willReturn($refundReason);
+        $param = new ApplyAftersalesParam(
+            contractId: (string) $contract->getId(),
+            type: 'return_refund',
+            reason: 'quality_issue',
+            description: '商品有质量问题',
+            proofImages: [],
+            items: [
+                [
+                    'orderProductId' => (string) $normalProduct->getId(),
+                    'quantity' => 1,
+                ]
+            ],
+        );
 
-        // Mock 合同查找
-        $this->contractRepository->method('find')->with('12345')->willReturn($this->contract);
+        $result = $this->procedure->execute($param);
 
-        // Mock 合同验证通过
-        $this->validator->method('validateContract')->willReturn();
-
-        // Mock 基础订单数据
-        $baseOrderData = ['orderId' => '12345', 'userId' => 'user123'];
-        $this->dataBuilder->method('buildBaseOrderData')->willReturn($baseOrderData);
-
-        // Mock 查找活跃售后
-        $this->aftersalesRepository->method('findActiveAftersalesByOrderProductIds')->willReturn([]);
-
-        // Mock 商品验证通过
-        $this->validator->method('validateAftersalesItem')->willReturn($normalProduct);
-
-        // Mock 商品数据构建
-        $productData = ['productId' => '123', 'productName' => '测试商品'];
-        $this->dataBuilder->method('buildProductData')->willReturn($productData);
-
-        // Mock 售后服务创建
-        $aftersales = $this->createMock(\Tourze\OrderRefundBundle\Entity\Aftersales::class);
-        $this->aftersalesService->method('createFromArray')->willReturn($aftersales);
-
-        // Mock 响应构建
-        $aftersalesResponse = ['id' => '456', 'status' => 'pending'];
-        $this->dataBuilder->method('buildAftersalesResponse')->willReturn($aftersalesResponse);
-
-        // Mock 最终结果构建
-        $finalResult = [
-            'success' => true,
-            'aftersales' => [$aftersalesResponse],
-            'errors' => []
-        ];
-        $this->dataBuilder->method('buildFinalResult')->willReturn($finalResult);
-
-        $result = $this->procedure->execute();
-
-        $this->assertArrayHasKey('success', $result);
-        $this->assertTrue($result['success']);
-        $this->assertArrayHasKey('aftersales', $result);
-        $this->assertNotEmpty($result['aftersales']);
+        $this->assertInstanceOf(ArrayResult::class, $result);
+        $this->assertArrayHasKey('aftersalesList', $result->data);
+        $this->assertArrayHasKey('totalCount', $result->data);
+        $this->assertNotEmpty($result['aftersalesList']);
+        $this->assertEquals(1, $result['totalCount']);
     }
 
     public function testApplyAftersalesWithMixedProducts(): void
     {
-        // 测试包含正常商品和赠品的混合场景
-        $this->procedure->contractId = '12345';
-        $this->procedure->type = 'return';
-        $this->procedure->reason = 'quality_issue';
-        $this->procedure->description = '商品有质量问题';
-        $this->procedure->proofImages = [];
-        $this->procedure->items = [
-            [
-                'orderProductId' => '123', // 正常商品
-                'quantity' => 1,
+        // 创建测试用户
+        $user = $this->createNormalUser('mixed-test-user-1', 'password123');
+        $this->setAuthenticatedUser($user);
+
+        // 创建测试合同
+        $contract = $this->createContract($user, 'CONTRACT-MIXED-001');
+
+        // 创建正常商品和赠品
+        $normalProduct = $this->createNormalProduct($contract, 'MIXED-NORMAL-SKU-001');
+        $giftProduct = $this->createGiftProduct($contract, 'MIXED-GIFT-SKU-001');
+
+        $param = new ApplyAftersalesParam(
+            contractId: (string) $contract->getId(),
+            type: 'return_refund',
+            reason: 'quality_issue',
+            description: '商品有质量问题',
+            proofImages: [],
+            items: [
+                [
+                    'orderProductId' => (string) $normalProduct->getId(),
+                    'quantity' => 1,
+                ],
+                [
+                    'orderProductId' => (string) $giftProduct->getId(),
+                    'quantity' => 1,
+                ]
             ],
-            [
-                'orderProductId' => '456', // 赠品
-                'quantity' => 1,
-            ]
-        ];
+        );
 
-        // Mock 正常商品
-        $normalProduct = $this->createMock(OrderProduct::class);
-        $normalProduct->method('isGift')->willReturn(false);
+        $result = $this->procedure->execute($param);
 
-        // Mock 用户
-        $this->security->method('getUser')->willReturn($this->user);
-
-        // Mock 验证器
-        $aftersalesType = $this->createMock(\Tourze\OrderRefundBundle\Enum\AftersalesType::class);
-        $refundReason = $this->createMock(\Tourze\OrderRefundBundle\Enum\RefundReason::class);
-        $this->validator->method('validateAftersalesType')->willReturn($aftersalesType);
-        $this->validator->method('validateRefundReason')->willReturn($refundReason);
-
-        // Mock 合同
-        $this->contractRepository->method('find')->willReturn($this->contract);
-        $this->validator->method('validateContract')->willReturn();
-
-        // Mock 基础数据
-        $baseOrderData = ['orderId' => '12345'];
-        $this->dataBuilder->method('buildBaseOrderData')->willReturn($baseOrderData);
-
-        // Mock 查找活跃售后
-        $this->aftersalesRepository->method('findActiveAftersalesByOrderProductIds')->willReturn([]);
-
-        // Mock 商品验证 - 第一个通过，第二个失败
-        $this->validator->method('validateAftersalesItem')
-            ->willReturnCallback(function($contract, $item) use ($normalProduct) {
-                if ($item['orderProductId'] === '123') {
-                    return $normalProduct; // 正常商品
-                } else {
-                    throw new \InvalidArgumentException('赠品不允许售后，如有疑问请联系客服'); // 赠品
-                }
-            });
-
-        // Mock 其他必要的服务
-        $productData = ['productId' => '123'];
-        $this->dataBuilder->method('buildProductData')->willReturn($productData);
-
-        $aftersales = $this->createMock(\Tourze\OrderRefundBundle\Entity\Aftersales::class);
-        $this->aftersalesService->method('createFromArray')->willReturn($aftersales);
-
-        $aftersalesResponse = ['id' => '789', 'status' => 'pending'];
-        $this->dataBuilder->method('buildAftersalesResponse')->willReturn($aftersalesResponse);
-
-        // Mock 最终结果 - 部分成功，部分失败
-        $finalResult = [
-            'success' => true,
-            'aftersales' => [$aftersalesResponse],
-            'errors' => ['创建商品 456 的售后单失败: 赠品不允许售后，如有疑问请联系客服']
-        ];
-        $this->dataBuilder->method('buildFinalResult')->willReturn($finalResult);
-
-        $result = $this->procedure->execute();
-
-        $this->assertArrayHasKey('success', $result);
-        $this->assertArrayHasKey('aftersales', $result);
-        $this->assertArrayHasKey('errors', $result);
+        $this->assertInstanceOf(ArrayResult::class, $result);
+        $this->assertArrayHasKey('aftersalesList', $result->data);
+        $this->assertArrayHasKey('totalCount', $result->data);
+        $this->assertArrayHasKey('errors', $result->data);
         $this->assertNotEmpty($result['errors']);
         $this->assertStringContainsString('赠品不允许售后', $result['errors'][0]);
+    }
+
+    /**
+     * 创建测试合同
+     */
+    private function createContract(UserInterface $user, string $sn): Contract
+    {
+        $contract = new Contract();
+        $contract->setSn($sn);
+        $contract->setUser($user);
+        $contract->setState(OrderState::PAID);
+        $contract->setType('default');
+
+        $this->em->persist($contract);
+        $this->em->flush();
+
+        return $contract;
+    }
+
+    /**
+     * 创建赠品商品
+     */
+    private function createGiftProduct(Contract $contract, string $skuCode): OrderProduct
+    {
+        $spu = $this->createSpu('赠品商品');
+        $sku = $this->createSku($spu, $skuCode);
+
+        $product = new OrderProduct();
+        $product->setContract($contract);
+        $product->setSpu($spu);
+        $product->setSku($sku);
+        $product->setIsGift(true); // 设置为赠品
+        $product->setQuantity(1);
+        $product->setValid(true);
+
+        // 使用 OrderPrice 来设置价格
+        $this->addPriceToProduct($product, '0.00', 'CNY', '赠品价格');
+
+        $this->em->persist($product);
+        $this->em->flush();
+
+        return $product;
+    }
+
+    /**
+     * 创建正常商品
+     */
+    private function createNormalProduct(Contract $contract, string $skuCode): OrderProduct
+    {
+        $spu = $this->createSpu('正常商品');
+        $sku = $this->createSku($spu, $skuCode);
+
+        $product = new OrderProduct();
+        $product->setContract($contract);
+        $product->setSpu($spu);
+        $product->setSku($sku);
+        $product->setIsGift(false); // 设置为非赠品
+        $product->setQuantity(1);
+        $product->setValid(true);
+
+        // 使用 OrderPrice 来设置价格
+        $this->addPriceToProduct($product, '100.00', 'CNY', '商品价格');
+
+        $this->em->persist($product);
+        $this->em->flush();
+
+        return $product;
+    }
+
+    /**
+     * 添加价格到商品
+     */
+    private function addPriceToProduct(OrderProduct $product, string $money, string $currency, string $name): void
+    {
+        $price = new OrderPrice();
+        $price->setProduct($product);
+        $price->setContract($product->getContract());
+        $price->setMoney($money);
+        $price->setCurrency($currency);
+        $price->setName($name);
+        $price->setType(PriceType::SALE);
+
+        $product->addPrice($price);
+        $this->em->persist($price);
+    }
+
+    /**
+     * 创建测试 SPU
+     */
+    private function createSpu(string $title): Spu
+    {
+        $spu = new Spu();
+        $spu->setTitle($title);
+        $spu->setState(SpuState::ONLINE);
+
+        $this->em->persist($spu);
+        $this->em->flush();
+
+        return $spu;
+    }
+
+    /**
+     * 创建测试 SKU
+     */
+    private function createSku(Spu $spu, string $mpn): Sku
+    {
+        $sku = new Sku();
+        $sku->setSpu($spu);
+        $sku->setMpn($mpn);
+        $sku->setTitle($spu->getTitle());
+        $sku->setUnit('件'); // 设置必填的单位字段
+
+        $this->em->persist($sku);
+        $this->em->flush();
+
+        return $sku;
     }
 }
