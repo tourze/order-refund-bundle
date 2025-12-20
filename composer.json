@@ -55,7 +55,7 @@
     "tourze/doctrine-user-bundle": "1.0.*",
     "tourze/easy-admin-menu-bundle": "1.0.*",
     "tourze/enum-extra": "1.0.*",
-    "tourze/json-rpc-cache-bundle": "1.0.*",
+    "tourze/json-rpc-cache-bundle": "2.0.*",
     "tourze/json-rpc-check-ip-bundle": "0.0.*",
     "tourze/json-rpc-core": "2.0.*",
     "tourze/json-rpc-lock-bundle": "2.0.*",
